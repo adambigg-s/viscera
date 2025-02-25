@@ -4,7 +4,6 @@ use std::ffi::c_void;
 
 use sok::app as sap;
 use sok::gfx;
-use sok::gl;
 use sok::glue;
 use sok::log;
 use sokol as sok;
@@ -130,6 +129,7 @@ pub extern "C" fn cleanup(user_data: *mut c_void) {
     user_data.raw_drop();
 }
 
+#[rustfmt::skip]
 #[allow(clippy::single_match)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn event(event: *const sap::Event, _user_data: *mut c_void) {
@@ -145,7 +145,7 @@ pub extern "C" fn event(event: *const sap::Event, _user_data: *mut c_void) {
                     println!("using backend: {:?}", gl_backend);
                 }
                 _ => {}
-            },
+            }
             _ => {}
         }
     }
@@ -163,9 +163,10 @@ pub trait Droppable {
 
 impl<T> Droppable for *mut T {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    #[allow(unused_must_use)]
     fn raw_drop(self) {
         unsafe {
-            let _ = Box::from_raw(self);
+            Box::from_raw(self);
         }
     }
 }
