@@ -48,24 +48,27 @@ impl State {
         let right = self.camera.right;
         let forward = self.camera.world_up.cross(right);
 
+        let mut movement = glm::Vec3::ZERO;
         if self.inputs.key_pressed[sap::Keycode::W as usize] {
-            self.camera.position += forward * speed;
+            movement += forward;
         }
         if self.inputs.key_pressed[sap::Keycode::S as usize] {
-            self.camera.position -= forward * speed;
+            movement -= forward;
         }
         if self.inputs.key_pressed[sap::Keycode::A as usize] {
-            self.camera.position -= right * speed;
+            movement -= right;
         }
         if self.inputs.key_pressed[sap::Keycode::D as usize] {
-            self.camera.position += right * speed;
+            movement += right;
         }
         if self.inputs.key_pressed[sap::Keycode::R as usize] {
-            self.camera.position += self.camera.world_up * speed;
+            movement += self.camera.world_up;
         }
         if self.inputs.key_pressed[sap::Keycode::F as usize] {
-            self.camera.position -= self.camera.world_up * speed;
+            movement -= self.camera.world_up;
         }
+        movement = glm::Vec3::normalize_or_zero(movement);
+        self.camera.position += movement * speed;
 
         if self.inputs.key_pressed[sap::Keycode::L as usize] {
             sap::lock_mouse(!sap::mouse_locked());
