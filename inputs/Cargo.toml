@@ -1,0 +1,8 @@
+[package]
+name = "inputs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sokol = { version = "*", git = "https://github.com/floooh/sokol-rust.git" }
+glam = "0.30.0"

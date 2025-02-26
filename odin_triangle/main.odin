@@ -1,3 +1,4 @@
+
 package main
 
 import "core:fmt"
@@ -23,7 +24,6 @@ void main() {
 }` +
 	"\x00"
 
-
 FRAG_SHADER ::
 	`
 #version 330 core
@@ -39,7 +39,7 @@ void main()
 // odinfmt: enable
 
 main :: proc() {
-	if !bool(glfw.Init()) {
+	if !cast(bool)(glfw.Init()) {
 		fmt.eprintln("failed to init glfw")
 		return
 	}
@@ -168,3 +168,4 @@ cleanup :: proc(state: ^State) {
 	gl.DeleteBuffers(1, &state.ebo)
 	gl.DeleteVertexArrays(1, &state.vao)
 }
+
