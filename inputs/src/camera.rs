@@ -10,7 +10,7 @@ pub struct Camera {
     pub front: glm::Vec3,
     pub up: glm::Vec3,
     pub right: glm::Vec3,
-    pub base_up: glm::Vec3,
+    pub world_up: glm::Vec3,
     pub yaw: f32,
     pub pitch: f32,
     pub fov: f32,
@@ -26,7 +26,7 @@ impl Camera {
             up: glm::Vec3::new(0., 1., 0.),
             yaw: PI / 2.,
             front: glm::Vec3::new(0., 0., -1.),
-            base_up: glm::Vec3::new(0., 1., 0.),
+            world_up: glm::Vec3::new(0., 1., 0.),
             fov: 55f32.to_radians(),
             aspect_ratio: sap::widthf() / sap::heightf(),
             near: 0.1,
@@ -42,7 +42,7 @@ impl Camera {
             self.yaw.sin() * self.pitch.cos(),
         );
         self.front = front.normalize();
-        self.right = self.front.cross(self.base_up).normalize();
+        self.right = self.front.cross(self.world_up).normalize();
         self.up = self.right.cross(self.front).normalize();
     }
 
@@ -60,7 +60,7 @@ pub struct Inputs {
     pub mouse_delta: glm::Vec2,
     pub mouse_sensitivity: f32,
     pub move_speed: f32,
-    pub mouse_locked: bool,
+    pub major_change: bool,
 }
 
 impl Inputs {
@@ -70,7 +70,7 @@ impl Inputs {
             mouse_sensitivity: 0.1,
             move_speed: 3.,
             mouse_delta: glm::Vec2::ZERO,
-            mouse_locked: false,
+            major_change: false,
         }
     }
 
@@ -86,6 +86,9 @@ impl Inputs {
             }
             sap::EventType::MouseMove => {
                 self.mouse_delta += glm::Vec2::new(event.mouse_dx, event.mouse_dy);
+            }
+            sap::EventType::Resized => {
+                self.major_change = true;
             }
             _ => {}
         }

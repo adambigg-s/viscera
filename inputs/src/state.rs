@@ -12,6 +12,7 @@ use crate::camera::Inputs;
 #[derive(Default)]
 pub struct State {
     pub pipeline: gfx::Pipeline,
+    pub pipeline_textured: gfx::Pipeline,
     pub bindings: gfx::Bindings,
     pub pass_action: gfx::PassAction,
     pub camera: Camera,
@@ -45,13 +46,13 @@ impl State {
 
         let speed = self.inputs.move_speed * dt;
         let right = self.camera.right;
-        let front = self.camera.front;
+        let forward = self.camera.world_up.cross(right);
 
         if self.inputs.key_pressed[sap::Keycode::W as usize] {
-            self.camera.position += front * speed;
+            self.camera.position += forward * speed;
         }
         if self.inputs.key_pressed[sap::Keycode::S as usize] {
-            self.camera.position -= front * speed;
+            self.camera.position -= forward * speed;
         }
         if self.inputs.key_pressed[sap::Keycode::A as usize] {
             self.camera.position -= right * speed;
@@ -59,13 +60,23 @@ impl State {
         if self.inputs.key_pressed[sap::Keycode::D as usize] {
             self.camera.position += right * speed;
         }
+        if self.inputs.key_pressed[sap::Keycode::R as usize] {
+            self.camera.position += self.camera.world_up * speed;
+        }
+        if self.inputs.key_pressed[sap::Keycode::F as usize] {
+            self.camera.position -= self.camera.world_up * speed;
+        }
 
         if self.inputs.key_pressed[sap::Keycode::L as usize] {
-            sap::lock_mouse(self.inputs.mouse_locked);
-            self.inputs.mouse_locked = !self.inputs.mouse_locked;
+            sap::lock_mouse(!sap::mouse_locked());
         }
         if self.inputs.key_pressed[sap::Keycode::Escape as usize] {
             sap::request_quit();
+        }
+
+        if self.inputs.major_change {
+            self.inputs.major_change = false;
+            self.camera.aspect_ratio = sap::widthf() / sap::heightf();
         }
     }
 }
@@ -73,4 +84,5 @@ impl State {
 pub struct RenderObject {
     pub vertex_buffer: gfx::Buffer,
     pub vertex_count: usize,
+    pub texture: Option<gfx::Sampler>,
 }

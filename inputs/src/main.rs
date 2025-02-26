@@ -1,4 +1,5 @@
 mod camera;
+mod ffis;
 mod shaders;
 mod state;
 
@@ -12,6 +13,7 @@ use sokol::time;
 
 use glam as glm;
 
+use ffis::*;
 use state::RenderObject;
 use state::State;
 
@@ -25,13 +27,14 @@ fn main() {
 
     sap::run(&sap::Desc {
         user_data,
-        init_userdata_cb: Some(init),
-        event_userdata_cb: Some(event),
-        frame_userdata_cb: Some(frame),
-        cleanup_userdata_cb: Some(cleanup),
+        init_userdata_cb: Some(ffi_cb_init),
+        event_userdata_cb: Some(ffi_cb_event),
+        frame_userdata_cb: Some(ffi_cb_frame),
+        cleanup_userdata_cb: Some(ffi_cb_cleanup),
         width: WIDTH,
         height: HEIGHT,
-        window_title: c"horror game".as_ptr(),
+        fullscreen: false,
+        window_title: c"compassion collective".as_ptr(),
         logger: sap::Logger {
             func: Some(log::slog_func),
             user_data,
@@ -44,12 +47,7 @@ fn main() {
     });
 }
 
-extern "C" fn init(user_data: *mut c_void) {
-    let state: &mut State;
-    unsafe {
-        state = &mut *(user_data as *mut State);
-    }
-
+fn callback_init(user_data: *mut c_void, state: &mut State) {
     time::setup();
     gfx::setup(&gfx::Desc {
         environment: glue::environment(),
@@ -63,22 +61,21 @@ extern "C" fn init(user_data: *mut c_void) {
     #[rustfmt::skip]
     const TRI_VERTICES: [f32; 18] = [
         // vertices         colors
-        -0.5, 3., 0.,     1., 0.,     0.,
-         0.5, 3., 0.,         0., 1., 0.,
-         0.,   4., 0.,         0.,     0., 1.,
+        -0.5, -0.5, 5.,     1., 0., 0.,
+        0.5 , -0.5, 5.,     0., 1., 0.,
+        0.  , 0.5 , 5.,     0., 0., 1.,
     ];
 
     #[rustfmt::skip]
     const TOMB_VERTICES: [f32; 144] = [
-        // Front face (position: x, y, z; color: r, g, b)
-        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,  // Bottom-left
-         0.5, -0.5,  0.1,   0.5, 0.5, 0.5,  // Bottom-right
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,  // Top-right
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,  // Top-right
-        -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,  // Top-left
-        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,  // Bottom-left
+        // vertices         colors
+        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
+         0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
+         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
+         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
+        -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
+        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
 
-        // Back face
         -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
          0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
          0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
@@ -86,7 +83,6 @@ extern "C" fn init(user_data: *mut c_void) {
         -0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
         -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
 
-        // Left face
         -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
         -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
         -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
@@ -94,7 +90,6 @@ extern "C" fn init(user_data: *mut c_void) {
         -0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
         -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
 
-        // Right face
          0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
          0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
          0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
@@ -104,13 +99,14 @@ extern "C" fn init(user_data: *mut c_void) {
     ];
 
     #[rustfmt::skip]
-    const GROUND_VERTICES: [f32; 36] = [
-        -10.0, -0.5, -10.0,  0.3, 0.3, 0.3,  // Bottom-left
-        10.0, -0.5, -10.0,  0.3, 0.3, 0.3,  // Bottom-right
-        10.0, -0.5,  10.0,  0.3, 0.3, 0.3,  // Top-right
-        10.0, -0.5,  10.0,  0.3, 0.3, 0.3,  // Top-right
-        -10.0, -0.5,  10.0,  0.3, 0.3, 0.3,  // Top-left
-        -10.0, -0.5, -10.0,  0.3, 0.3, 0.3,  // Bottom-left
+    const GROUND_VERTICES: [f32; 48] = [
+        // vertcs                colors            tex uv
+        -10.0, -0.5, -10.0,     0.3, 0.3, 0.3,     0., 0.,
+        10.0 , -0.5, -10.0,     0.3, 0.3, 0.3,     0., 10.,
+        10.0 , -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 10.,
+        10.0 , -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 10.,
+        -10.0, -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 0.,
+        -10.0, -0.5, -10.0,     0.3, 0.3, 0.3,     0., 0.,
     ];
 
     let obj1 = RenderObject {
@@ -119,8 +115,28 @@ extern "C" fn init(user_data: *mut c_void) {
             ..Default::default()
         }),
         vertex_count: TOMB_VERTICES.len(),
+        texture: None,
     };
     state.objects.push(obj1);
+
+    let img = image::open("textures/ground.jpg").unwrap();
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    let texture = gfx::make_image(&gfx::ImageDesc {
+        width: width as i32,
+        height: height as i32,
+        pixel_format: gfx::PixelFormat::Rgba8,
+        data: {
+            let mut data = gfx::ImageData::new();
+            data.subimage[0][0] = gfx::slice_as_range(&rgba);
+            data
+        },
+        ..Default::default()
+    });
+    state.bindings.images[shaders::IMG_TEX] = texture;
+    state.bindings.samplers[shaders::SMP_SMP] = gfx::make_sampler(&gfx::SamplerDesc {
+        ..Default::default()
+    });
 
     let obj1 = RenderObject {
         vertex_buffer: gfx::make_buffer(&gfx::BufferDesc {
@@ -128,6 +144,7 @@ extern "C" fn init(user_data: *mut c_void) {
             ..Default::default()
         }),
         vertex_count: GROUND_VERTICES.len(),
+        texture: Some(state.bindings.samplers[0]),
     };
     state.objects.push(obj1);
 
@@ -137,15 +154,18 @@ extern "C" fn init(user_data: *mut c_void) {
             ..Default::default()
         }),
         vertex_count: TRI_VERTICES.len(),
+        texture: None,
     };
     state.objects.push(obj1);
 
     state.pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
-        shader: gfx::make_shader(&shaders::most_basic_shader_desc(gfx::query_backend())),
+        shader: gfx::make_shader(&shaders::untextured_shader_desc(gfx::query_backend())),
+        primitive_type: gfx::PrimitiveType::Triangles,
+        cull_mode: gfx::CullMode::None,
         layout: {
             let mut layout = gfx::VertexLayoutState::new();
-            layout.attrs[shaders::ATTR_MOST_BASIC_POSITION].format = gfx::VertexFormat::Float3;
-            layout.attrs[shaders::ATTR_MOST_BASIC_A_COLOR].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_UNTEXTURED_POSITION].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_UNTEXTURED_A_COLOR].format = gfx::VertexFormat::Float3;
             layout
         },
         depth: gfx::DepthState {
@@ -153,42 +173,41 @@ extern "C" fn init(user_data: *mut c_void) {
             compare: gfx::CompareFunc::LessEqual,
             ..Default::default()
         },
+        ..Default::default()
+    });
+
+    state.pipeline_textured = gfx::make_pipeline(&gfx::PipelineDesc {
+        shader: gfx::make_shader(&shaders::textured_shader_desc(gfx::query_backend())),
         primitive_type: gfx::PrimitiveType::Triangles,
+        cull_mode: gfx::CullMode::None,
+        layout: {
+            let mut layout = gfx::VertexLayoutState::new();
+            layout.attrs[shaders::ATTR_TEXTURED_POSITION].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_TEXTURED_A_COLOR].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_TEXTURED_A_TEXCOORD].format = gfx::VertexFormat::Float2;
+            layout
+        },
+        depth: gfx::DepthState {
+            write_enabled: true,
+            compare: gfx::CompareFunc::LessEqual,
+            ..Default::default()
+        },
         ..Default::default()
     });
 
     state.pass_action.colors[0] = gfx::ColorAttachmentAction {
         load_action: gfx::LoadAction::Clear,
         #[rustfmt::skip]
-        clear_value: gfx::Color { r: 0.2, g: 0.2, b: 0.2, a: 1., },
+        clear_value: gfx::Color { r: 0.07, g: 0.01, b: 0.01, a: 1., },
         ..Default::default()
     };
 }
 
-extern "C" fn cleanup(user_data: *mut c_void) {
-    gfx::shutdown();
-    #[allow(unused_must_use)]
-    #[allow(clippy::from_raw_with_void_ptr)]
-    unsafe {
-        Box::from_raw(user_data);
-    }
-}
-
-extern "C" fn event(raw_event: *const sap::Event, user_data: *mut c_void) {
-    let event: &sap::Event;
-    let state: &mut State;
-    unsafe {
-        event = &*raw_event;
-        state = &mut *(user_data as *mut State);
-    }
+fn callback_event(event: &sap::Event, state: &mut State) {
     state.inputs.get_inputs(event);
 }
 
-extern "C" fn frame(user_data: *mut c_void) {
-    let state: &mut State;
-    unsafe {
-        state = &mut *(user_data as *mut State);
-    }
+fn callback_frame(state: &mut State) {
     state.update_camera();
 
     gfx::begin_pass(&gfx::Pass {
@@ -198,7 +217,6 @@ extern "C" fn frame(user_data: *mut c_void) {
     });
 
     gfx::apply_viewport(15, 15, sap::width() - 30, sap::height() - 30, false);
-    gfx::apply_pipeline(state.pipeline);
 
     let projection = state.camera.projection_matrix();
     let view = state.camera.view_matrix();
@@ -206,11 +224,16 @@ extern "C" fn frame(user_data: *mut c_void) {
 
     let vs_params = [model, view, projection];
 
-    gfx::apply_uniforms(shaders::UB_VS_PARAMS, &gfx::value_as_range(&vs_params));
-
     for obj in state.objects.iter() {
+        if obj.texture.is_none() {
+            gfx::apply_pipeline(state.pipeline);
+        }
+        else {
+            gfx::apply_pipeline(state.pipeline_textured);
+        }
         state.bindings.vertex_buffers[0] = obj.vertex_buffer;
         gfx::apply_bindings(&state.bindings);
+        gfx::apply_uniforms(shaders::UB_VS_PARAMS, &gfx::value_as_range(&vs_params));
         gfx::draw(0, obj.vertex_count, 1);
     }
 
