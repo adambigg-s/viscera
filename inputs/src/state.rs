@@ -22,6 +22,9 @@ pub struct State {
     pub last_frame_time: u64,
     pub delta_time: f32,
     pub fps: f32,
+
+    pub sample_data: Vec<f32>,
+    pub sample_pos: usize,
 }
 
 impl State {
@@ -31,6 +34,23 @@ impl State {
             bindings: gfx::Bindings::new(),
             pass_action: gfx::PassAction::new(),
             camera: Camera::new(),
+
+            sample_data: {
+                let reader = hound::WavReader::open("audio/music.wav").expect("audio failure");
+                let spec = reader.spec();
+
+                println!("specs: {:?}", spec);
+
+                match spec.sample_format {
+                    hound::SampleFormat::Float => {
+                        reader.into_samples().map(|sam| sam.unwrap()).collect()
+                    }
+                    hound::SampleFormat::Int => reader
+                        .into_samples::<i16>()
+                        .map(|sam| sam.unwrap() as f32 / i16::MAX as f32)
+                        .collect(),
+                }
+            },
             ..Default::default()
         }
     }

@@ -12,6 +12,7 @@ use sokol::gfx;
 use sokol::glue;
 use sokol::log;
 use sokol::time;
+use sokol::audio as aud;
 
 use glam as glm;
 
@@ -50,9 +51,20 @@ fn main() {
 
 fn callback_init(user_data: *mut c_void, state: &mut State) {
     time::setup();
+
     gfx::setup(&gfx::Desc {
         environment: glue::environment(),
         logger: gfx::Logger {
+            func: Some(log::slog_func),
+            user_data,
+        },
+        ..Default::default()
+    });
+
+    aud::setup(&aud::Desc {
+        num_channels: 1,
+        sample_rate: 44100,
+        logger: aud::Logger {
             func: Some(log::slog_func),
             user_data,
         },
@@ -241,4 +253,19 @@ fn callback_frame(state: &mut State) {
 
     gfx::end_pass();
     gfx::commit();
+
+    let buffer_size = aud::buffer_frames();
+    let mut buffer = vec![0.0; buffer_size as usize];
+
+    (0..buffer_size as usize).for_each(|i| {
+        if state.sample_pos >= state.sample_data.len() {
+            state.sample_pos = 0;
+        }
+        buffer[i] = state.sample_data[state.sample_pos];
+        state.sample_pos += 1;
+    });
+
+    if !buffer.is_empty() {
+        aud::push(&buffer[0], buffer_size);
+    }
 }
