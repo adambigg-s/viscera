@@ -11,37 +11,39 @@ layout (binding = 0) uniform vs_params {
     mat4 projection;
 };
 
-out float fog_factor;
 out vec2 texcoord;
 
 void main() {
-    vec4 world_pos = model * vec4(position, 1.);
-    vec4 view_pos = view * world_pos;
-    gl_Position = projection * view_pos;
-    fog_factor = -view_pos.z;
+    gl_Position = projection * view * model * vec4(position, 1.);
     texcoord = a_texcoord;
 }
 @end
 
 @fs textured_frags
-in float fog_factor;
 in vec2 texcoord;
 
 layout (binding = 0) uniform texture2D tex;
 layout (binding = 0) uniform sampler smp;
+layout (binding = 1) uniform fs_params {
+    float time;
+};
 
 out vec4 frag_color;
 
+float random(vec2 uv) {
+    return fract(sin(dot(uv.xy, vec2(123333.33, 100000.88))) * 5.);
+}
+
 void main() {
-    float fog_start = 10.;
-    float fog_end = 45.;
-    vec3 fog_color = vec3(.05, .05, .05);
-    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 0.3);
+    vec4 base_color = texture(sampler2D(tex, smp), texcoord);
+    vec2 scaled_coords = floor(texcoord * 200.) / 200.;
+    float time_const = floor(time * 5.) / 5.;
+    float noise = random(scaled_coords + vec2(sin(time_const), cos(time_const)));
+    float dither = step(0.5, noise);
 
-    vec4 tex_color = texture(sampler2D(tex, smp), texcoord);
+    vec3 color_shift = vec3(dither * 0.7);
 
-    vec3 final_color = mix(tex_color.rgb, fog_color, fog_amount);
-    frag_color = vec4(final_color, 1.);
+    frag_color = vec4(base_color.rgb * (1. - color_shift), base_color.a);
 }
 @end
 
@@ -60,31 +62,20 @@ layout (binding = 0) uniform vs_params {
 };
 
 out vec3 color;
-out float fog_factor;
 
 void main() {
-    vec4 world_pos = model * vec4(position, 1.);
-    vec4 view_pos = view * world_pos;
-    gl_Position = projection * view_pos;
+    gl_Position = projection * view * model * vec4(position, 1.);
     color = a_color;
-    fog_factor = -view_pos.z;
 }
 @end
 
 @fs untextured_frags
 in vec3 color;
-in float fog_factor;
 
 out vec4 frag_color;
 
 void main() {
-    float fog_start = 10.;
-    float fog_end = 45.;
-    vec3 fog_color = vec3(.1, .07, .07);
-    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 0.7);
-
-    vec3 final_color = mix(color, fog_color, fog_amount);
-    frag_color = vec4(final_color, 1.);
+    frag_color = vec4(color, 1.);
 }
 @end
 

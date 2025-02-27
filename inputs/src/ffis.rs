@@ -3,9 +3,6 @@ use std::ffi::c_void;
 use sokol::app as sap;
 use sokol::gfx;
 
-use crate::callback_event;
-use crate::callback_frame;
-use crate::callback_init;
 use crate::state::State;
 
 pub extern "C" fn ffi_cb_init(user_data: *mut c_void) {
@@ -14,7 +11,7 @@ pub extern "C" fn ffi_cb_init(user_data: *mut c_void) {
         state = &mut *(user_data as *mut State);
     }
 
-    callback_init(user_data, state);
+    state.callback_init(user_data);
 }
 
 pub extern "C" fn ffi_cb_event(raw_event: *const sap::Event, user_data: *mut c_void) {
@@ -25,7 +22,7 @@ pub extern "C" fn ffi_cb_event(raw_event: *const sap::Event, user_data: *mut c_v
         state = &mut *(user_data as *mut State);
     }
 
-    callback_event(event, state);
+    state.callback_event(event);
 }
 
 pub extern "C" fn ffi_cb_frame(user_data: *mut c_void) {
@@ -34,7 +31,7 @@ pub extern "C" fn ffi_cb_frame(user_data: *mut c_void) {
         state = &mut *(user_data as *mut State);
     }
 
-    callback_frame(state);
+    state.callback_frame();
 }
 
 #[allow(unused_must_use)]
