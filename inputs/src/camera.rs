@@ -67,8 +67,8 @@ impl Inputs {
     pub fn new() -> Inputs {
         Inputs {
             key_pressed: [false; 372],
-            mouse_sensitivity: 0.1,
-            move_speed: 3.,
+            mouse_sensitivity: 0.25,
+            move_speed: 2.5,
             mouse_delta: glm::Vec2::ZERO,
             major_change: false,
         }

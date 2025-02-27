@@ -1,8 +1,10 @@
 mod camera;
+mod core;
 mod ffis;
 mod shaders;
 mod state;
 
+use core::objects::RenderObject;
 use std::ffi::c_void;
 
 use sokol::app as sap;
@@ -14,7 +16,6 @@ use sokol::time;
 use glam as glm;
 
 use ffis::*;
-use state::RenderObject;
 use state::State;
 
 const WIDTH: i32 = 1600;
@@ -61,8 +62,8 @@ fn callback_init(user_data: *mut c_void, state: &mut State) {
     #[rustfmt::skip]
     const TRI_VERTICES: [f32; 18] = [
         // vertices         colors
-        -0.5, -0.5, 5.,     1., 0., 0.,
-        0.5 , -0.5, 5.,     0., 1., 0.,
+        -0.5, 1.5, 5.,     1., 0., 0.,
+        0.5 , 1.5, 5.,     0., 1., 0.,
         0.  , 0.5 , 5.,     0., 0., 1.,
     ];
 
@@ -101,12 +102,12 @@ fn callback_init(user_data: *mut c_void, state: &mut State) {
     #[rustfmt::skip]
     const GROUND_VERTICES: [f32; 48] = [
         // vertcs                colors            tex uv
-        -10.0, -0.5, -10.0,     0.3, 0.3, 0.3,     0., 0.,
-        10.0 , -0.5, -10.0,     0.3, 0.3, 0.3,     0., 10.,
-        10.0 , -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 10.,
-        10.0 , -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 10.,
-        -10.0, -0.5, 10.0 ,     0.3, 0.3, 0.3,     10., 0.,
-        -10.0, -0.5, -10.0,     0.3, 0.3, 0.3,     0., 0.,
+        -100.0, -0.5, -100.0,     0.3, 0.3, 0.3,     0., 0.,
+        100.0 , -0.5, -100.0,     0.3, 0.3, 0.3,     0., 100.,
+        100.0 , -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 100.,
+        100.0 , -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 100.,
+        -100.0, -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 0.,
+        -100.0, -0.5, -100.0,     0.3, 0.3, 0.3,     0., 0.,
     ];
 
     let obj1 = RenderObject {
@@ -208,7 +209,9 @@ fn callback_event(event: &sap::Event, state: &mut State) {
 }
 
 fn callback_frame(state: &mut State) {
+    state.update_metrics();
     state.update_camera();
+    state.display_fps();
 
     gfx::begin_pass(&gfx::Pass {
         action: state.pass_action,
@@ -227,8 +230,7 @@ fn callback_frame(state: &mut State) {
     for obj in state.objects.iter() {
         if obj.texture.is_none() {
             gfx::apply_pipeline(state.pipeline);
-        }
-        else {
+        } else {
             gfx::apply_pipeline(state.pipeline_textured);
         }
         state.bindings.vertex_buffers[0] = obj.vertex_buffer;

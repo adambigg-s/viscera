@@ -32,10 +32,10 @@ layout (binding = 0) uniform sampler smp;
 out vec4 frag_color;
 
 void main() {
-    float fog_start = 0.1;
-    float fog_end = 5.;
+    float fog_start = 10.;
+    float fog_end = 45.;
     vec3 fog_color = vec3(.05, .05, .05);
-    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 1.0);
+    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 0.3);
 
     vec4 tex_color = texture(sampler2D(tex, smp), texcoord);
 
@@ -76,10 +76,10 @@ in float fog_factor;
 out vec4 frag_color;
 
 void main() {
-    float fog_start = 0.1;
-    float fog_end = 10.;
+    float fog_start = 10.;
+    float fog_end = 45.;
     vec3 fog_color = vec3(.1, .07, .07);
-    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 1.0);
+    float fog_amount = clamp((fog_factor - fog_start) / (fog_end - fog_start), 0.0, 0.7);
 
     vec3 final_color = mix(color, fog_color, fog_amount);
     frag_color = vec4(final_color, 1.);
