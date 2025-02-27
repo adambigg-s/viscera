@@ -2,11 +2,10 @@ use std::ffi::c_void;
 
 use sokol::app as sap;
 use sokol::gfx;
-use sokol::audio as aud;
 
+use crate::callback_event;
 use crate::callback_frame;
 use crate::callback_init;
-use crate::callback_event;
 use crate::state::State;
 
 pub extern "C" fn ffi_cb_init(user_data: *mut c_void) {
@@ -42,7 +41,6 @@ pub extern "C" fn ffi_cb_frame(user_data: *mut c_void) {
 #[allow(clippy::from_raw_with_void_ptr)]
 pub extern "C" fn ffi_cb_cleanup(user_data: *mut c_void) {
     gfx::shutdown();
-    aud::shutdown();
     unsafe {
         Box::from_raw(user_data);
     }

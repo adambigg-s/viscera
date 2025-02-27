@@ -1,3 +1,4 @@
+// // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // 
 // textured shader pipeline
 @vs textured_verts
 layout (location = 0) in vec3 position;
@@ -46,6 +47,7 @@ void main() {
 
 @program textured textured_verts textured_frags
 
+// // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // 
 // untextured shader pipeline
 @vs untextured_verts
 layout (location = 0) in vec3 position;

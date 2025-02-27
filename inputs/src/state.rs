@@ -8,49 +8,33 @@ use glam as glm;
 
 use crate::camera::Camera;
 use crate::camera::Inputs;
-use crate::core::objects::RenderObject;
+use crate::core::objects::Entity;
 
 #[derive(Default)]
 pub struct State {
-    pub pipeline: gfx::Pipeline,
+    pub entities: Vec<Entity>,
+    pub sampler: gfx::Sampler,
+
+    pub pipeline_untextured: gfx::Pipeline,
     pub pipeline_textured: gfx::Pipeline,
     pub bindings: gfx::Bindings,
     pub pass_action: gfx::PassAction,
+
     pub camera: Camera,
     pub inputs: Inputs,
-    pub objects: Vec<RenderObject>,
+
     pub last_frame_time: u64,
     pub delta_time: f32,
     pub fps: f32,
-
-    pub sample_data: Vec<f32>,
-    pub sample_pos: usize,
 }
 
 impl State {
     pub fn new() -> State {
         State {
-            pipeline: gfx::Pipeline::new(),
+            pipeline_untextured: gfx::Pipeline::new(),
             bindings: gfx::Bindings::new(),
             pass_action: gfx::PassAction::new(),
             camera: Camera::new(),
-
-            sample_data: {
-                let reader = hound::WavReader::open("audio/music.wav").expect("audio failure");
-                let spec = reader.spec();
-
-                println!("specs: {:?}", spec);
-
-                match spec.sample_format {
-                    hound::SampleFormat::Float => {
-                        reader.into_samples().map(|sam| sam.unwrap()).collect()
-                    }
-                    hound::SampleFormat::Int => reader
-                        .into_samples::<i16>()
-                        .map(|sam| sam.unwrap() as f32 / i16::MAX as f32)
-                        .collect(),
-                }
-            },
             ..Default::default()
         }
     }
@@ -114,11 +98,5 @@ impl State {
         self.delta_time = time::sec(current_time - self.last_frame_time) as f32;
         self.last_frame_time = current_time;
         self.fps = 1.0 / self.delta_time;
-    }
-
-    pub fn display_fps(&mut self) {
-        if gfx::query_frame_stats().frame_index % 33 == 0 {
-            println!("\x1b[Hfps: {}", self.fps);
-        }
     }
 }

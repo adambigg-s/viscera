@@ -4,6 +4,7 @@ mod ffis;
 mod shaders;
 mod state;
 
+use core::objects::Entity;
 use core::objects::RenderObject;
 use std::ffi::c_void;
 
@@ -12,7 +13,6 @@ use sokol::gfx;
 use sokol::glue;
 use sokol::log;
 use sokol::time;
-use sokol::audio as aud;
 
 use glam as glm;
 
@@ -61,78 +61,106 @@ fn callback_init(user_data: *mut c_void, state: &mut State) {
         ..Default::default()
     });
 
-    aud::setup(&aud::Desc {
-        num_channels: 1,
-        sample_rate: 44100,
-        logger: aud::Logger {
-            func: Some(log::slog_func),
-            user_data,
-        },
-        ..Default::default()
-    });
-
     #[rustfmt::skip]
     const TRI_VERTICES: [f32; 18] = [
         // vertices         colors
-        -0.5, 1.5, 5.,     1., 0., 0.,
-        0.5 , 1.5, 5.,     0., 1., 0.,
-        0.  , 0.5 , 5.,     0., 0., 1.,
+        -0.5, 1.5, 5.,     1., 1., 0.,
+        0.5 , 1.5, 5.,     0., 1., 1.,
+        0.  , 0.5 , 5.,     1., 0., 1.,
     ];
 
     #[rustfmt::skip]
-    const TOMB_VERTICES: [f32; 144] = [
-        // vertices         colors
-        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
-         0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-        -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
-
-        -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-         0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-         0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
-         0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
-        -0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
-        -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-
-        -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-        -0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
-        -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-        -0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-        -0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
-        -0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-
-         0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
-         0.5, -0.5,  0.1,   0.5, 0.5, 0.5,
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-         0.5,  0.5,  0.1,   0.6, 0.6, 0.6,
-         0.5,  0.5, -0.1,   0.6, 0.6, 0.6,
-         0.5, -0.5, -0.1,   0.5, 0.5, 0.5,
+    const CUBE_VERTS: [f32; 288] = [
+        // Front face
+        -0.5, -0.5,  0.5,  1.0, 0.0, 0.0,  0.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0, 0.0,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 0.0, 0.0,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 0.0, 0.0,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  1.0, 0.0, 0.0,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  1.0, 0.0, 0.0,  0.0, 0.0,
+        // Back face
+        -0.5, -0.5, -0.5,  0.0, 1.0, 0.0,  0.0, 0.0,
+         0.5, -0.5, -0.5,  0.0, 1.0, 0.0,  1.0, 0.0,
+         0.5,  0.5, -0.5,  0.0, 1.0, 0.0,  1.0, 1.0,
+         0.5,  0.5, -0.5,  0.0, 1.0, 0.0,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0, 0.0,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0, 0.0,  0.0, 0.0,
+        // Left face
+        -0.5, -0.5, -0.5,  0.0, 0.0, 1.0,  0.0, 0.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0, 1.0,  1.0, 0.0,
+        -0.5,  0.5,  0.5,  0.0, 0.0, 1.0,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0, 0.0, 1.0,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 0.0, 1.0,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 0.0, 1.0,  0.0, 0.0,
+        // Right face
+         0.5, -0.5, -0.5,  1.0, 1.0, 0.0,  0.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 1.0, 0.0,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 1.0, 0.0,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 1.0, 0.0,  1.0, 1.0,
+         0.5,  0.5, -0.5,  1.0, 1.0, 0.0,  0.0, 1.0,
+         0.5, -0.5, -0.5,  1.0, 1.0, 0.0,  0.0, 0.0,
+        // Top face
+        -0.5,  0.5, -0.5,  0.0, 1.0, 1.0,  0.0, 0.0,
+         0.5,  0.5, -0.5,  0.0, 1.0, 1.0,  1.0, 0.0,
+         0.5,  0.5,  0.5,  0.0, 1.0, 1.0,  1.0, 1.0,
+         0.5,  0.5,  0.5,  0.0, 1.0, 1.0,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0, 1.0, 1.0,  0.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0, 1.0,  0.0, 0.0,
+        // Bottom face
+        -0.5, -0.5, -0.5,  1.0, 0.0, 1.0,  0.0, 0.0,
+         0.5, -0.5, -0.5,  1.0, 0.0, 1.0,  1.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0, 1.0,  1.0, 1.0,
+         0.5, -0.5,  0.5,  1.0, 0.0, 1.0,  1.0, 1.0,
+        -0.5, -0.5,  0.5,  1.0, 0.0, 1.0,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  1.0, 0.0, 1.0,  0.0, 0.0,
     ];
-
     #[rustfmt::skip]
-    const GROUND_VERTICES: [f32; 48] = [
-        // vertcs                colors            tex uv
-        -100.0, -0.5, -100.0,     0.3, 0.3, 0.3,     0., 0.,
-        100.0 , -0.5, -100.0,     0.3, 0.3, 0.3,     0., 100.,
-        100.0 , -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 100.,
-        100.0 , -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 100.,
-        -100.0, -0.5, 100.0 ,     0.3, 0.3, 0.3,     100., 0.,
-        -100.0, -0.5, -100.0,     0.3, 0.3, 0.3,     0., 0.,
+    let voxel_positions = vec![
+        glm::Vec3::new(0.0, 0.0, 0.7),
+        glm::Vec3::new(1.0, 0.0, 0.7),
+        glm::Vec3::new(2.0, 0.0, 0.7),
+        glm::Vec3::new(3.0, 0.0, 1.7),
+        glm::Vec3::new(4.0, 3.0, 10.7),
+        glm::Vec3::new(0.0, 3.0, 10.7),
+        glm::Vec3::new(0.0, 3.0, 10.0),
+        glm::Vec3::new(0.0, 3.0, 10.0),
+        glm::Vec3::new(0.0, 3.0, 10.0),
+        glm::Vec3::new(0.0, 3.0, 10.0),
+        glm::Vec3::new(1.0, 3.0, 10.0),
+        glm::Vec3::new(2.0, 3.0, 10.0),
+        glm::Vec3::new(3.0, 3.0, 10.0),
+        glm::Vec3::new(4.0, 3.0, 0.0),
+        glm::Vec3::new(3.0, 1.0, 0.0),
+        glm::Vec3::new(3.0, 2.0, 0.0),
+        glm::Vec3::new(3.0, 3.0, 0.0),
+        glm::Vec3::new(3.7, 4.0, 0.0),
+        glm::Vec3::new(3.7, 3.0, 1.0),
+        glm::Vec3::new(4.7, 4.0, 0.0),
+        glm::Vec3::new(3.7, 1.0, 0.0),
+        glm::Vec3::new(9.7, 2.0, 0.0),
+        glm::Vec3::new(9.7, 3.0, 0.0),
+        glm::Vec3::new(9.0, 4.0, 0.0),
+        glm::Vec3::new(13.0, 3.0, 1.0),
+        glm::Vec3::new(13.0, 6.0, 0.0),
+        glm::Vec3::new(13.0, 6.0, 0.0),
+        glm::Vec3::new(3.0, 6.0, 0.0),
+        glm::Vec3::new(3.0, 6.0, 0.0),
+        glm::Vec3::new(3.0, 6.0, 0.0),
+        glm::Vec3::new(3.0, 6.0, 1.0),
+        glm::Vec3::new(4.0, 4.0, 1.0),
+        glm::Vec3::new(3.0, 1.0, 1.0),
+        glm::Vec3::new(3.0, 2.0, 1.0),
+        glm::Vec3::new(5.0, 3.0, 1.0),
+        glm::Vec3::new(5.0, 4.0, 1.0),
+        glm::Vec3::new(5.0, 3.0, 1.0),
+        glm::Vec3::new(5.0, 4.0, 0.0),
+        glm::Vec3::new(5.0, 1.0, 0.0),
+        glm::Vec3::new(5.0, 2.0, 0.0),
+        glm::Vec3::new(3.0, 3.0, 0.0),
+        glm::Vec3::new(3.0, 4.0, 0.0),
     ];
 
-    let obj1 = RenderObject {
-        vertex_buffer: gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&TOMB_VERTICES),
-            ..Default::default()
-        }),
-        vertex_count: TOMB_VERTICES.len(),
-        texture: None,
-    };
-    state.objects.push(obj1);
-
-    let img = image::open("textures/ground.jpg").unwrap();
+    let img = image::open("textures/ground.jpg").expect("failed to read texture");
     let rgba = img.to_rgba8();
     let (width, height) = rgba.dimensions();
     let texture = gfx::make_image(&gfx::ImageDesc {
@@ -146,32 +174,47 @@ fn callback_init(user_data: *mut c_void, state: &mut State) {
         },
         ..Default::default()
     });
-    state.bindings.images[shaders::IMG_TEX] = texture;
-    state.bindings.samplers[shaders::SMP_SMP] = gfx::make_sampler(&gfx::SamplerDesc {
+
+    state.sampler = gfx::make_sampler(&gfx::SamplerDesc {
+        min_filter: gfx::Filter::Linear,
+        mag_filter: gfx::Filter::Linear,
         ..Default::default()
     });
 
-    let obj1 = RenderObject {
-        vertex_buffer: gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&GROUND_VERTICES),
+    let cube_buffer = gfx::make_buffer(&gfx::BufferDesc {
+        data: gfx::slice_as_range(&CUBE_VERTS),
+        ..Default::default()
+    });
+    for pos in voxel_positions {
+        let entity = Entity {
+            render_object: RenderObject {
+                vertex_buffer: cube_buffer,
+                vertex_count: CUBE_VERTS.len() / 6,
+            },
+            position: pos,
+            scale: glm::Vec3::new(1., 1., 1.),
+            texture: Some(texture),
             ..Default::default()
-        }),
-        vertex_count: GROUND_VERTICES.len(),
-        texture: Some(state.bindings.samplers[0]),
-    };
-    state.objects.push(obj1);
+        };
+        state.entities.push(entity);
+    }
 
-    let obj1 = RenderObject {
-        vertex_buffer: gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&TRI_VERTICES),
-            ..Default::default()
-        }),
-        vertex_count: TRI_VERTICES.len(),
-        texture: None,
+    let triangle = gfx::make_buffer(&gfx::BufferDesc {
+        data: gfx::slice_as_range(&TRI_VERTICES),
+        ..Default::default()
+    });
+    let tri_entity = Entity {
+        render_object: RenderObject {
+            vertex_buffer: triangle,
+            vertex_count: TRI_VERTICES.len() / 6,
+        },
+        scale: glm::Vec3::new(1., 1., 1.),
+        position: glm::Vec3::new(0., 0., 0.),
+        ..Default::default()
     };
-    state.objects.push(obj1);
+    state.entities.push(tri_entity);
 
-    state.pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
+    state.pipeline_untextured = gfx::make_pipeline(&gfx::PipelineDesc {
         shader: gfx::make_shader(&shaders::untextured_shader_desc(gfx::query_backend())),
         primitive_type: gfx::PrimitiveType::Triangles,
         cull_mode: gfx::CullMode::None,
@@ -195,8 +238,8 @@ fn callback_init(user_data: *mut c_void, state: &mut State) {
         cull_mode: gfx::CullMode::None,
         layout: {
             let mut layout = gfx::VertexLayoutState::new();
-            layout.attrs[shaders::ATTR_TEXTURED_POSITION].format = gfx::VertexFormat::Float3;
-            layout.attrs[shaders::ATTR_TEXTURED_A_COLOR].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_UNTEXTURED_POSITION].format = gfx::VertexFormat::Float3;
+            layout.attrs[shaders::ATTR_UNTEXTURED_A_COLOR].format = gfx::VertexFormat::Float3;
             layout.attrs[shaders::ATTR_TEXTURED_A_TEXCOORD].format = gfx::VertexFormat::Float2;
             layout
         },
@@ -223,7 +266,6 @@ fn callback_event(event: &sap::Event, state: &mut State) {
 fn callback_frame(state: &mut State) {
     state.update_metrics();
     state.update_camera();
-    state.display_fps();
 
     gfx::begin_pass(&gfx::Pass {
         action: state.pass_action,
@@ -235,37 +277,28 @@ fn callback_frame(state: &mut State) {
 
     let projection = state.camera.projection_matrix();
     let view = state.camera.view_matrix();
-    let model = glm::Mat4::IDENTITY;
 
-    let vs_params = [model, view, projection];
+    for &entity in &state.entities {
+        let model = glm::Mat4::from_scale_rotation_translation(
+            entity.scale,
+            entity.rotation,
+            entity.position,
+        );
+        let vs_params = [model, view, projection];
 
-    for obj in state.objects.iter() {
-        if obj.texture.is_none() {
-            gfx::apply_pipeline(state.pipeline);
-        } else {
+        if let Some(texture) = entity.texture {
             gfx::apply_pipeline(state.pipeline_textured);
+            state.bindings.images[0] = texture;
+            state.bindings.samplers[0] = state.sampler;
+        } else {
+            gfx::apply_pipeline(state.pipeline_untextured);
         }
-        state.bindings.vertex_buffers[0] = obj.vertex_buffer;
+        state.bindings.vertex_buffers[0] = entity.render_object.vertex_buffer;
         gfx::apply_bindings(&state.bindings);
         gfx::apply_uniforms(shaders::UB_VS_PARAMS, &gfx::value_as_range(&vs_params));
-        gfx::draw(0, obj.vertex_count, 1);
+        gfx::draw(0, entity.render_object.vertex_count, 1);
     }
 
     gfx::end_pass();
     gfx::commit();
-
-    let buffer_size = aud::buffer_frames();
-    let mut buffer = vec![0.0; buffer_size as usize];
-
-    (0..buffer_size as usize).for_each(|i| {
-        if state.sample_pos >= state.sample_data.len() {
-            state.sample_pos = 0;
-        }
-        buffer[i] = state.sample_data[state.sample_pos];
-        state.sample_pos += 1;
-    });
-
-    if !buffer.is_empty() {
-        aud::push(&buffer[0], buffer_size);
-    }
 }

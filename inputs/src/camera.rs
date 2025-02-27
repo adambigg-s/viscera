@@ -7,12 +7,15 @@ use glam as glm;
 #[derive(Default)]
 pub struct Camera {
     pub position: glm::Vec3,
+    
     pub front: glm::Vec3,
     pub up: glm::Vec3,
     pub right: glm::Vec3,
     pub world_up: glm::Vec3,
+    
     pub yaw: f32,
     pub pitch: f32,
+    
     pub fov: f32,
     pub aspect_ratio: f32,
     pub near: f32,
