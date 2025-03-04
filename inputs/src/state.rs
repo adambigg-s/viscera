@@ -124,9 +124,9 @@ impl State {
         #[rustfmt::skip]
         const TRI_VERTICES: [f32; 18] = [
             // vertices         colors
-            -0.5, 1.5, 5.,     1., 1., 0.,
-            0.5 , 1.5, 5.,     0., 1., 1.,
-            0.  , 0.5 , 5.,     1., 0., 1.,
+            -0.5, 1.5, 5.,     1., 0.7, 0.,
+            0.5 , 1.5, 5.,     0., 1., 0.7,
+            0.  , 0.5 , 5.,     0.7, 0., 1.,
         ];
 
         #[rustfmt::skip]
@@ -374,6 +374,7 @@ pub struct Inputs {
     pub mouse_sensitivity: f32,
     pub move_speed: f32,
     pub major_change: bool,
+    pub click: bool,
 }
 
 impl Inputs {
@@ -384,6 +385,7 @@ impl Inputs {
             move_speed: 2.5,
             mouse_delta: glm::Vec2::ZERO,
             major_change: false,
+            click: false,
         }
     }
 
@@ -402,6 +404,12 @@ impl Inputs {
             }
             sap::EventType::Resized => {
                 self.major_change = true;
+            }
+            sap::EventType::MouseDown => {
+                self.click = true;
+            }
+            sap::EventType::MouseUp => {
+                self.click = false;
             }
             _ => {}
         }

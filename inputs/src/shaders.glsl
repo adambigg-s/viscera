@@ -37,13 +37,13 @@ float random(vec2 uv) {
 void main() {
     vec4 base_color = texture(sampler2D(tex, smp), texcoord);
     vec2 scaled_coords = floor(texcoord * 200.) / 200.;
-    float time_const = floor(time * 5.) / 5.;
+    float time_const = floor(time * 5.);
     float noise = random(scaled_coords + vec2(sin(time_const), cos(time_const)));
     float dither = step(0.5, noise);
 
     vec3 color_shift = vec3(dither * 0.7);
 
-    frag_color = vec4(base_color.rgb * (1. - color_shift), base_color.a);
+    frag_color = vec4(base_color.rgb * color_shift, base_color.a);
 }
 @end
 
