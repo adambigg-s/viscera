@@ -15,12 +15,12 @@ use glam as glm;
 
 use camera::*;
 use ffis::*;
-use utils::Metrics;
+use utils::*;
 
 const WIDTH: i32 = 1600;
 const HEIGHT: i32 = 1200;
 #[rustfmt::skip]
-const BACKGROUND: gfx::Color = gfx::Color { r: 0.1, g: 0.1, b: 0.1, a: 1., };
+const BACKGROUND: gfx::Color = gfx::Color { r: 0.13, g: 0.13, b: 0.13, a: 1., };
 
 fn main() {
     let state = Box::new(State::new());
@@ -113,9 +113,9 @@ impl State {
 
         #[rustfmt::skip]
         let tri_vertices: [f32; 18] = [
-            -0.5, -0.5, 0., 1., 0.7, 0.,
-            0.5, -0.5, 0., 0., 1., 0.7,
-            0., 0.5, 0., 0.7, 0., 1.,
+            0.5, -0.5, 0., 0.7, 1., 0.,
+            0., 0.5, 0., 0., 0.7, 1.,
+            -0.5, -0.5, 0., 1., 0., 0.7,
         ];
         #[rustfmt::skip]
         let tri_indices: [u16; 3] = [
@@ -151,19 +151,55 @@ impl State {
             label: c"simple draw pipeline".as_ptr(),
             ..Default::default()
         });
-        for idx in 0..100 {
+        for idx in 0..30 {
             let object = RenderObject {
                 mesh: Mesh {
                     vertex_buffer: tri_vert_bindings,
                     index_buffer: Some(tri_index_bindings),
                     element_count: tri_indices.len(),
                 },
-                transform: glm::Mat4::from_translation(glm::Vec3::new(0., 0., idx as f32)),
+                transform: glm::Mat4::from_translation(glm::Vec3::new(
+                    idx as f32 / 3.,
+                    0.,
+                    idx as f32,
+                )),
                 pipeline: tri_pipeline,
                 material: Material::Simple,
             };
             self.objects.push(object);
         }
+
+        let plain_triangle = gfx::make_pipeline(&gfx::PipelineDesc {
+            shader: gfx::make_shader(&shaders::solid_color_shader_desc(gfx::query_backend())),
+            primitive_type: gfx::PrimitiveType::Triangles,
+            index_type: gfx::IndexType::Uint16,
+            depth: gfx::DepthState {
+                compare: gfx::CompareFunc::Less,
+                write_enabled: true,
+                ..Default::default()
+            },
+            layout: {
+                let mut layout = gfx::VertexLayoutState::new();
+                layout.attrs[shaders::ATTR_SIMPLE_POSITION].format = gfx::VertexFormat::Float3;
+                layout.attrs[shaders::ATTR_SIMPLE_V_COLOR].format = gfx::VertexFormat::Float3;
+                layout
+            },
+            label: c"solid draw pipeline with vertices".as_ptr(),
+            ..Default::default()
+        });
+        let solid_tri = RenderObject {
+            mesh: Mesh {
+                vertex_buffer: tri_vert_bindings,
+                index_buffer: Some(tri_index_bindings),
+                element_count: tri_indices.len(),
+            },
+            transform: glm::Mat4::from_translation(glm::Vec3::new(2., 2., 7.)),
+            pipeline: plain_triangle,
+            material: Material::SolidColor {
+                color: glm::Vec4::new(0., 1., 1., 1.),
+            },
+        };
+        self.objects.push(solid_tri);
 
         #[rustfmt::skip]
         let cube_verts: [f32; 180] = [
@@ -398,7 +434,7 @@ impl State {
         let projection = self.camera.projection_matrix();
         let view = self.camera.view_matrix();
 
-        for object in &self.objects {
+        for object in &mut self.objects {
             self.bindings = gfx::Bindings::new();
 
             self.bindings.vertex_buffers[0] = object.mesh.vertex_buffer;
@@ -415,6 +451,7 @@ impl State {
                     self.bindings.samplers[shaders::SMP_SAMP] = self.sampler;
                 }
                 Material::SolidColor { color } => {
+                    object.transform *= glm::Mat4::from_rotation_y(0.01);
                     gfx::apply_uniforms(shaders::UB_SOLID_PARAMS, &gfx::value_as_range(&color));
                 }
             }
@@ -429,26 +466,4 @@ impl State {
         gfx::end_pass();
         gfx::commit();
     }
-}
-
-fn load_texture(path: &str) -> gfx::Image {
-    let image = image::open(path)
-        .expect("error reading in texture")
-        .flipv()
-        .to_rgba8();
-    let (width, height) = image.dimensions();
-    let image_data = image.into_raw();
-
-    gfx::make_image(&gfx::ImageDesc {
-        width: width as i32,
-        height: height as i32,
-        pixel_format: gfx::PixelFormat::Rgba8,
-        data: {
-            let mut subimage = gfx::ImageData::new();
-            subimage.subimage[0][0] = gfx::slice_as_range(&image_data);
-            subimage
-        },
-        label: c"loaded texture".as_ptr(),
-        ..Default::default()
-    })
 }
