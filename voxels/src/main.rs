@@ -1,6 +1,7 @@
 mod camera;
 mod ffis;
 mod shaders;
+mod utils;
 
 use std::ffi::c_void;
 
@@ -8,12 +9,13 @@ use sokol::app as sap;
 use sokol::gfx;
 use sokol::glue;
 use sokol::log;
+use sokol::time;
 
 use glam as glm;
 
 use camera::*;
 use ffis::*;
-use sokol::time;
+use utils::Metrics;
 
 const WIDTH: i32 = 1600;
 const HEIGHT: i32 = 1200;
@@ -48,30 +50,19 @@ fn main() {
     });
 }
 
+#[derive(Default)]
+struct Mesh {
+    vertex_buffer: gfx::Buffer,
+    index_buffer: Option<gfx::Buffer>,
+    element_count: usize,
+}
+
+#[derive(Default)]
 struct RenderObject {
     mesh: Mesh,
     transform: glm::Mat4,
     pipeline: gfx::Pipeline,
-}
-
-struct Mesh {
-    vertex_buffer: gfx::Buffer,
-    index_buffer: Option<gfx::Buffer>,
-    vertex_count: usize,
-}
-
-#[derive(Default)]
-struct Metrics {
-    frame_time: f32,
-    last_frame_time: u64,
-}
-
-impl Metrics {
-    pub fn update(&mut self) {
-        let current_time = time::now();
-        self.frame_time = time::sec(current_time - self.last_frame_time) as f32;
-        self.last_frame_time = current_time;
-    }
+    texture: Option<gfx::Image>,
 }
 
 #[derive(Default)]
@@ -79,6 +70,7 @@ struct State {
     objects: Vec<RenderObject>,
     bindings: gfx::Bindings,
     pass_action: gfx::PassAction,
+    sampler: gfx::Sampler,
 
     camera: Camera,
     inputs: Inputs,
@@ -106,37 +98,34 @@ impl State {
         });
 
         #[rustfmt::skip]
-        let vertices: [f32; 18] = [
+        let tri_vertices: [f32; 18] = [
             -0.5, -0.5, 0., 1., 0.7, 0.,
             0.5, -0.5, 0., 0., 1., 0.7,
             0., 0.5, 0., 0.7, 0., 1.,
         ];
-
         #[rustfmt::skip]
-        let indices: [u16; 3] = [
+        let tri_indices: [u16; 3] = [
             0, 1, 2
         ];
-
-        let vertex_bindings = gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&vertices),
+        let tri_vert_bindings = gfx::make_buffer(&gfx::BufferDesc {
+            data: gfx::slice_as_range(&tri_vertices),
             label: c"triangle buffer".as_ptr(),
             ..Default::default()
         });
-
-        let index_bindings = gfx::make_buffer(&gfx::BufferDesc {
+        let tri_index_bindings = gfx::make_buffer(&gfx::BufferDesc {
             _type: gfx::BufferType::Indexbuffer,
-            data: gfx::slice_as_range(&indices),
+            data: gfx::slice_as_range(&tri_indices),
             label: c"triangle index buffer".as_ptr(),
             ..Default::default()
         });
-
-        let pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
+        let tri_pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
             shader: gfx::make_shader(&shaders::simple_shader_desc(gfx::query_backend())),
             primitive_type: gfx::PrimitiveType::Triangles,
             index_type: gfx::IndexType::Uint16,
             cull_mode: gfx::CullMode::None,
             depth: gfx::DepthState {
-                compare: gfx::CompareFunc::LessEqual,
+                compare: gfx::CompareFunc::Less,
+                write_enabled: true,
                 ..Default::default()
             },
             layout: {
@@ -148,25 +137,119 @@ impl State {
             label: c"simple draw pipeline".as_ptr(),
             ..Default::default()
         });
+        for idx in 0..100 {
+            let object = RenderObject {
+                mesh: Mesh {
+                    vertex_buffer: tri_vert_bindings,
+                    index_buffer: Some(tri_index_bindings),
+                    element_count: tri_indices.len(),
+                },
+                transform: glm::Mat4::from_translation(glm::Vec3::new(0., 0., idx as f32)),
+                pipeline: tri_pipeline,
+                ..Default::default()
+            };
+            self.objects.push(object);
+        }
 
-        let pass_action = gfx::ColorAttachmentAction {
+        #[rustfmt::skip]
+        let cube_verts: [f32; 180] = [
+            -0.5, -0.5, -0.5,  0.0, 0.0,
+             0.5, -0.5, -0.5,  1.0, 0.0,
+             0.5,  0.5, -0.5,  1.0, 1.0,
+             0.5,  0.5, -0.5,  1.0, 1.0,
+            -0.5,  0.5, -0.5,  0.0, 1.0,
+            -0.5, -0.5, -0.5,  0.0, 0.0,
+
+            -0.5, -0.5,  0.5,  0.0, 0.0,
+             0.5, -0.5,  0.5,  1.0, 0.0,
+             0.5,  0.5,  0.5,  1.0, 1.0,
+             0.5,  0.5,  0.5,  1.0, 1.0,
+            -0.5,  0.5,  0.5,  0.0, 1.0,
+            -0.5, -0.5,  0.5,  0.0, 0.0,
+
+            -0.5,  0.5,  0.5,  1.0, 0.0,
+            -0.5,  0.5, -0.5,  1.0, 1.0,
+            -0.5, -0.5, -0.5,  0.0, 1.0,
+            -0.5, -0.5, -0.5,  0.0, 1.0,
+            -0.5, -0.5,  0.5,  0.0, 0.0,
+            -0.5,  0.5,  0.5,  1.0, 0.0,
+
+             0.5,  0.5,  0.5,  1.0, 0.0,
+             0.5,  0.5, -0.5,  1.0, 1.0,
+             0.5, -0.5, -0.5,  0.0, 1.0,
+             0.5, -0.5, -0.5,  0.0, 1.0,
+             0.5, -0.5,  0.5,  0.0, 0.0,
+             0.5,  0.5,  0.5,  1.0, 0.0,
+
+            -0.5, -0.5, -0.5,  0.0, 1.0,
+             0.5, -0.5, -0.5,  1.0, 1.0,
+             0.5, -0.5,  0.5,  1.0, 0.0,
+             0.5, -0.5,  0.5,  1.0, 0.0,
+            -0.5, -0.5,  0.5,  0.0, 0.0,
+            -0.5, -0.5, -0.5,  0.0, 1.0,
+
+            -0.5,  0.5, -0.5,  0.0, 1.0,
+             0.5,  0.5, -0.5,  1.0, 1.0,
+             0.5,  0.5,  0.5,  1.0, 0.0,
+             0.5,  0.5,  0.5,  1.0, 0.0,
+            -0.5,  0.5,  0.5,  0.0, 0.0,
+            -0.5,  0.5, -0.5,  0.0, 1.0
+        ];
+        let cube_vert_bindings = gfx::make_buffer(&gfx::BufferDesc {
+            data: gfx::slice_as_range(&cube_verts),
+            label: c"square texture verts".as_ptr(),
+            ..Default::default()
+        });
+        let cube_pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
+            shader: gfx::make_shader(&shaders::texture_shader_desc(gfx::query_backend())),
+            primitive_type: gfx::PrimitiveType::Triangles,
+            cull_mode: gfx::CullMode::None,
+            depth: gfx::DepthState {
+                compare: gfx::CompareFunc::LessEqual,
+                write_enabled: true,
+                ..Default::default()
+            },
+            layout: {
+                let mut layout = gfx::VertexLayoutState::new();
+                layout.attrs[shaders::ATTR_TEXTURE_POSITION].format = gfx::VertexFormat::Float3;
+                layout.attrs[shaders::ATTR_TEXTURE_V_TEX_POS].format = gfx::VertexFormat::Float2;
+                layout
+            },
+            label: c"texture draw pipeline".as_ptr(),
+            ..Default::default()
+        });
+        let texture = load_texture("textures/num_grid.png");
+
+        for dy in 0..20 {
+            for dx in 0..20 {
+                let object = RenderObject {
+                    mesh: Mesh {
+                        vertex_buffer: cube_vert_bindings,
+                        index_buffer: None,
+                        element_count: cube_verts.len() / 5,
+                    },
+                    transform: glm::Mat4::from_translation(glm::Vec3::new(
+                        dx as f32, -1., dy as f32,
+                    )),
+                    pipeline: cube_pipeline,
+                    texture: Some(texture),
+                };
+                self.objects.push(object);
+            }
+        }
+
+        let sampler = gfx::make_sampler(&gfx::SamplerDesc {
+            min_filter: gfx::Filter::Nearest,
+            mag_filter: gfx::Filter::Nearest,
+            ..Default::default()
+        });
+        self.sampler = sampler;
+        let color_pass_action = gfx::ColorAttachmentAction {
             load_action: gfx::LoadAction::Clear,
             clear_value: BACKGROUND,
             ..Default::default()
         };
-
-        let object = RenderObject {
-            mesh: Mesh {
-                vertex_buffer: vertex_bindings,
-                index_buffer: Some(index_bindings),
-                vertex_count: vertices.len() / 6,
-            },
-            transform: glm::Mat4::IDENTITY,
-            pipeline,
-        };
-
-        self.objects.push(object);
-        self.pass_action.colors[0] = pass_action;
+        self.pass_action.colors[0] = color_pass_action;
     }
 
     fn callback_event(&mut self, event: &sap::Event) {
@@ -175,7 +258,8 @@ impl State {
 
     fn callback_frame(&mut self) {
         self.metrics.update();
-        self.camera.update(&mut self.inputs, self.metrics.frame_time);
+        self.camera
+            .update(&mut self.inputs, self.metrics.frame_time);
 
         gfx::begin_pass(&gfx::Pass {
             action: self.pass_action,
@@ -194,17 +278,45 @@ impl State {
 
             let vs_params = [model, view, projection];
 
-            self.bindings.vertex_buffers[0] = object.mesh.vertex_buffer;
+            self.bindings.vertex_buffers[shaders::ATTR_SIMPLE_POSITION] = object.mesh.vertex_buffer;
             if let Some(index_buffer) = object.mesh.index_buffer {
                 self.bindings.index_buffer = index_buffer;
+            } else {
+                self.bindings.index_buffer = gfx::Buffer::new();
+            }
+            if let Some(texture) = object.texture {
+                self.bindings.images[shaders::IMG_TEX] = texture;
+                self.bindings.samplers[shaders::SMP_SAMP] = self.sampler;
             }
             gfx::apply_bindings(&self.bindings);
             gfx::apply_uniforms(shaders::UB_VS_PARAMS, &gfx::slice_as_range(&vs_params));
 
-            gfx::draw(0, object.mesh.vertex_count, 1);
+            gfx::draw(0, object.mesh.element_count, 1);
         }
 
         gfx::end_pass();
         gfx::commit();
     }
+}
+
+fn load_texture(path: &str) -> gfx::Image {
+    let image = image::open(path)
+        .expect("error reading in texture")
+        .flipv()
+        .to_rgba8();
+    let (width, height) = image.dimensions();
+    let image_data = image.into_raw();
+
+    gfx::make_image(&gfx::ImageDesc {
+        width: width as i32,
+        height: height as i32,
+        pixel_format: gfx::PixelFormat::Rgba8,
+        data: {
+            let mut subimage = gfx::ImageData::new();
+            subimage.subimage[0][0] = gfx::slice_as_range(&image_data);
+            subimage
+        },
+        label: c"loaded texture".as_ptr(),
+        ..Default::default()
+    })
 }

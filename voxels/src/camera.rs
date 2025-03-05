@@ -15,6 +15,9 @@ pub struct Camera {
     pub right: glm::Vec3,
     pub world_up: glm::Vec3,
 
+    pub mouse_sensitivity: f32,
+    pub move_speed: f32,
+
     pub yaw: f32,
     pub pitch: f32,
 
@@ -28,14 +31,20 @@ impl Camera {
     pub fn new() -> Camera {
         Camera {
             position: glm::Vec3::new(0., 0., -10.),
-            up: glm::Vec3::new(0., 1., 0.),
-            yaw: PI / 2.,
+
             front: glm::Vec3::new(0., 0., -1.),
             world_up: glm::Vec3::new(0., 1., 0.),
+            up: glm::Vec3::new(0., 1., 0.),
+            yaw: PI / 2.,
+
+            mouse_sensitivity: 0.25,
+            move_speed: 2.5,
+
             fov: 55f32.to_radians(),
             aspect_ratio: WIDTH as f32 / HEIGHT as f32,
             near: 0.1,
             far: 100.,
+
             ..Default::default()
         }
     }
@@ -60,77 +69,73 @@ impl Camera {
     }
 
     pub fn update(&mut self, inputs: &mut Inputs, delta_time: f32) {
-        let dmouse = inputs.mouse_delta / 200. * inputs.mouse_sensitivity;
+        let dmouse = inputs.mouse_delta / 200. * self.mouse_sensitivity;
         self.yaw += dmouse.x;
         self.pitch -= dmouse.y;
         self.pitch = self.pitch.clamp(-PI / 2. + 0.5, PI / 2. - 0.5);
         inputs.mouse_delta = glm::Vec2::ZERO;
         self.update_vectors();
 
-        let speed = inputs.move_speed * delta_time;
+        let speed = self.move_speed * delta_time;
         let right = self.right;
         let forward = self.world_up.cross(right);
         let mut movement = glm::Vec3::ZERO;
-        if inputs.key_pressed[sap::Keycode::W as usize] {
+        if inputs.keys_active[sap::Keycode::W as usize] {
             movement += forward;
         }
-        if inputs.key_pressed[sap::Keycode::S as usize] {
+        if inputs.keys_active[sap::Keycode::S as usize] {
             movement -= forward;
         }
-        if inputs.key_pressed[sap::Keycode::A as usize] {
+        if inputs.keys_active[sap::Keycode::A as usize] {
             movement -= right;
         }
-        if inputs.key_pressed[sap::Keycode::D as usize] {
+        if inputs.keys_active[sap::Keycode::D as usize] {
             movement += right;
         }
-        if inputs.key_pressed[sap::Keycode::R as usize] {
+        if inputs.keys_active[sap::Keycode::R as usize] {
             movement += self.world_up;
         }
-        if inputs.key_pressed[sap::Keycode::F as usize] {
+        if inputs.keys_active[sap::Keycode::F as usize] {
             movement -= self.world_up;
         }
         movement = glm::Vec3::normalize_or_zero(movement);
         self.position += movement * speed;
 
-        if inputs.key_pressed[sap::Keycode::L as usize] {
+        if inputs.keys_active[sap::Keycode::L as usize] {
             sap::lock_mouse(!sap::mouse_locked());
         }
-        if inputs.key_pressed[sap::Keycode::Escape as usize] {
+        if inputs.keys_active[sap::Keycode::Escape as usize] {
             sap::request_quit();
         }
 
-        if inputs.key_pressed[sap::Keycode::Equal as usize] {
+        if inputs.keys_active[sap::Keycode::Equal as usize] {
             self.fov += 0.02;
         }
-        if inputs.key_pressed[sap::Keycode::Minus as usize] {
+        if inputs.keys_active[sap::Keycode::Minus as usize] {
             self.fov -= 0.02;
         }
 
-        if inputs.major_change {
-            inputs.major_change = false;
+        if inputs.window_event {
+            inputs.window_event = false;
             self.aspect_ratio = sap::widthf() / sap::heightf();
         }
     }
 }
 
 pub struct Inputs {
-    pub key_pressed: [bool; 372],
+    pub keys_active: [bool; 372],
+    pub mouse_click: bool,
     pub mouse_delta: glm::Vec2,
-    pub mouse_sensitivity: f32,
-    pub move_speed: f32,
-    pub major_change: bool,
-    pub click: bool,
+    pub window_event: bool,
 }
 
 impl Inputs {
     pub fn new() -> Inputs {
         Inputs {
-            key_pressed: [false; 372],
-            mouse_sensitivity: 0.25,
-            move_speed: 2.5,
+            keys_active: [false; 372],
             mouse_delta: glm::Vec2::ZERO,
-            major_change: false,
-            click: false,
+            window_event: false,
+            mouse_click: false,
         }
     }
 
@@ -138,23 +143,23 @@ impl Inputs {
         match event._type {
             sap::EventType::KeyDown => {
                 let key = event.key_code as usize;
-                self.key_pressed[key] = true;
+                self.keys_active[key] = true;
             }
             sap::EventType::KeyUp => {
                 let key = event.key_code as usize;
-                self.key_pressed[key] = false;
+                self.keys_active[key] = false;
             }
             sap::EventType::MouseMove => {
                 self.mouse_delta += glm::Vec2::new(event.mouse_dx, event.mouse_dy);
             }
             sap::EventType::Resized => {
-                self.major_change = true;
+                self.window_event = true;
             }
             sap::EventType::MouseDown => {
-                self.click = true;
+                self.mouse_click = true;
             }
             sap::EventType::MouseUp => {
-                self.click = false;
+                self.mouse_click = false;
             }
             _ => {}
         }

@@ -34,28 +34,31 @@ void main() {
 // texture shaders
 @vs tex_vert
 in vec3 position;
-in vec3 v_color;
+in vec2 v_tex_pos;
 layout (binding = 0) uniform vs_params {
     mat4 model;
     mat4 view;
     mat4 projection;
 };
 
-out vec3 f_color;
+out vec2 f_tex_pos;
 
 void main() {
     gl_Position = projection * view * model * vec4(position, 1.);
-    f_color = v_color;
+    f_tex_pos = v_tex_pos;
 }
 
 @end
 
 @fs tex_frag
-in vec3 f_color;
+in vec2 f_tex_pos;
+layout (binding = 0) uniform texture2D tex;
+layout (binding = 1) uniform sampler samp;
+
 out vec4 color;
 
 void main() {
-    color = vec4(f_color, 1.);
+    color = texture(sampler2D(tex, samp), f_tex_pos);
 }
 
 @end
