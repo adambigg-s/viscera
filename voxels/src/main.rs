@@ -37,7 +37,7 @@ fn main() {
         fullscreen: false,
         window_title: c"learn opengl with sokol and rust".as_ptr(),
         high_dpi: true,
-        sample_count: 8,
+        sample_count: 4,
         logger: sap::Logger {
             func: Some(log::slog_func),
             user_data,
@@ -56,22 +56,12 @@ enum Material {
     SolidColor { color: glm::Vec4 },
 }
 
-impl Default for Material {
-    fn default() -> Material {
-        Material::SolidColor {
-            color: glm::Vec4::new(0., 1., 1., 1.),
-        }
-    }
-}
-
-#[derive(Default)]
 struct Mesh {
     vertex_buffer: gfx::Buffer,
     index_buffer: Option<gfx::Buffer>,
     element_count: usize,
 }
 
-#[derive(Default)]
 struct RenderObject {
     mesh: Mesh,
     transform: glm::Mat4,
@@ -113,9 +103,9 @@ impl State {
 
         #[rustfmt::skip]
         let tri_vertices: [f32; 18] = [
+            -0.5, -0.5, 0., 1., 0., 0.7,
             0.5, -0.5, 0., 0.7, 1., 0.,
             0., 0.5, 0., 0., 0.7, 1.,
-            -0.5, -0.5, 0., 1., 0., 0.7,
         ];
         #[rustfmt::skip]
         let tri_indices: [u16; 3] = [
@@ -148,10 +138,10 @@ impl State {
                 layout.attrs[shaders::ATTR_SIMPLE_V_COLOR].format = gfx::VertexFormat::Float3;
                 layout
             },
-            label: c"simple draw pipeline".as_ptr(),
+            label: c"simple draw pipeline with frag interp".as_ptr(),
             ..Default::default()
         });
-        for idx in 0..30 {
+        for idx in 0..12 {
             let object = RenderObject {
                 mesh: Mesh {
                     vertex_buffer: tri_vert_bindings,
@@ -201,141 +191,9 @@ impl State {
         };
         self.objects.push(solid_tri);
 
-        #[rustfmt::skip]
-        let cube_verts: [f32; 180] = [
-            -0.5, -0.5, -0.5,  0.0, 0.0,
-             0.5, -0.5, -0.5,  1.0, 0.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-            -0.5,  0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 0.0,
-
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 1.0,
-             0.5,  0.5,  0.5,  1.0, 1.0,
-            -0.5,  0.5,  0.5,  0.0, 1.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-
-            -0.5,  0.5,  0.5,  1.0, 0.0,
-            -0.5,  0.5, -0.5,  1.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-            -0.5,  0.5,  0.5,  1.0, 0.0,
-
-             0.5,  0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5,  0.5,  0.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5, -0.5,  1.0, 1.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-
-            -0.5,  0.5, -0.5,  0.0, 1.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-            -0.5,  0.5,  0.5,  0.0, 0.0,
-            -0.5,  0.5, -0.5,  0.0, 1.0
-        ];
-        let cube_vert_bindings = gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&cube_verts),
-            label: c"square texture verts".as_ptr(),
-            ..Default::default()
-        });
-        let cube_pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
-            shader: gfx::make_shader(&shaders::texture_shader_desc(gfx::query_backend())),
-            primitive_type: gfx::PrimitiveType::Triangles,
-            cull_mode: gfx::CullMode::None,
-            depth: gfx::DepthState {
-                compare: gfx::CompareFunc::LessEqual,
-                write_enabled: true,
-                ..Default::default()
-            },
-            layout: {
-                let mut layout = gfx::VertexLayoutState::new();
-                layout.attrs[shaders::ATTR_TEXTURE_POSITION].format = gfx::VertexFormat::Float3;
-                layout.attrs[shaders::ATTR_TEXTURE_V_TEX_POS].format = gfx::VertexFormat::Float2;
-                layout
-            },
-            label: c"texture draw pipeline".as_ptr(),
-            ..Default::default()
-        });
         let texture = load_texture("textures/num_grid.png");
-        for dy in 0..20 {
-            for dx in 0..20 {
-                let object = RenderObject {
-                    mesh: Mesh {
-                        vertex_buffer: cube_vert_bindings,
-                        index_buffer: None,
-                        element_count: cube_verts.len() / 5,
-                    },
-                    transform: glm::Mat4::from_translation(glm::Vec3::new(
-                        dx as f32, -1., dy as f32,
-                    )),
-                    pipeline: cube_pipeline,
-                    material: Material::Texture { texture },
-                };
-                self.objects.push(object);
-            }
-        }
+        let lighting_cube_vert_bindings = cube_verts_uv_normal();
 
-        #[rustfmt::skip]
-        let lighting_cube_verts: [f32; 288] = [
-            -0.5, -0.5, -0.5,  0.0, 0.0,  1., 0., 0.,
-             0.5, -0.5, -0.5,  1.0, 0.0,  1., 0., 0.,
-             0.5,  0.5, -0.5,  1.0, 1.0,  1., 0., 0.,
-             0.5,  0.5, -0.5,  1.0, 1.0,  1., 0., 0.,
-            -0.5,  0.5, -0.5,  0.0, 1.0,  1., 0., 0.,
-            -0.5, -0.5, -0.5,  0.0, 0.0,  1., 0., 0.,
-
-            -0.5, -0.5,  0.5,  0.0, 0.0,  0., 1., 0.,
-             0.5, -0.5,  0.5,  1.0, 0.0,  0., 1., 0.,
-             0.5,  0.5,  0.5,  1.0, 1.0,  0., 1., 0.,
-             0.5,  0.5,  0.5,  1.0, 1.0,  0., 1., 0.,
-            -0.5,  0.5,  0.5,  0.0, 1.0,  0., 1., 0.,
-            -0.5, -0.5,  0.5,  0.0, 0.0,  0., 1., 0.,
-
-            -0.5,  0.5,  0.5,  1.0, 0.0,  0., -1., 0.,
-            -0.5,  0.5, -0.5,  1.0, 1.0,  0., -1., 0.,
-            -0.5, -0.5, -0.5,  0.0, 1.0,  0., -1., 0.,
-            -0.5, -0.5, -0.5,  0.0, 1.0,  0., -1., 0.,
-            -0.5, -0.5,  0.5,  0.0, 0.0,  0., -1., 0.,
-            -0.5,  0.5,  0.5,  1.0, 0.0,  0., -1., 0.,
-
-             0.5,  0.5,  0.5,  1.0, 0.0,  1., 0., 0.,
-             0.5,  0.5, -0.5,  1.0, 1.0,  1., 0., 0.,
-             0.5, -0.5, -0.5,  0.0, 1.0,  1., 0., 0.,
-             0.5, -0.5, -0.5,  0.0, 1.0,  1., 0., 0.,
-             0.5, -0.5,  0.5,  0.0, 0.0,  1., 0., 0.,
-             0.5,  0.5,  0.5,  1.0, 0.0,  1., 0., 0.,
-
-            -0.5, -0.5, -0.5,  0.0, 1.0,  -1., 0., 0.,
-             0.5, -0.5, -0.5,  1.0, 1.0,  -1., 0., 0.,
-             0.5, -0.5,  0.5,  1.0, 0.0,  -1., 0., 0.,
-             0.5, -0.5,  0.5,  1.0, 0.0,  -1., 0., 0.,
-            -0.5, -0.5,  0.5,  0.0, 0.0,  -1., 0., 0.,
-            -0.5, -0.5, -0.5,  0.0, 1.0,  -1., 0., 0.,
-
-            -0.5,  0.5, -0.5,  0.0, 1.0,  0., 0., 1.,
-             0.5,  0.5, -0.5,  1.0, 1.0,  0., 0., 1.,
-             0.5,  0.5,  0.5,  1.0, 0.0,  0., 0., 1.,
-             0.5,  0.5,  0.5,  1.0, 0.0,  0., 0., 1.,
-            -0.5,  0.5,  0.5,  0.0, 0.0,  0., 0., 1.,
-            -0.5,  0.5, -0.5,  0.0, 1.0,  0., 0., 1.,
-        ];
-        let lighting_cube_vert_bindings = gfx::make_buffer(&gfx::BufferDesc {
-            data: gfx::slice_as_range(&lighting_cube_verts),
-            label: c"square texture verts".as_ptr(),
-            ..Default::default()
-        });
         let lighting_pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
             shader: gfx::make_shader(&shaders::lighting_shader_desc(gfx::query_backend())),
             primitive_type: gfx::PrimitiveType::Triangles,
@@ -355,11 +213,28 @@ impl State {
             label: c"texture draw pipeline".as_ptr(),
             ..Default::default()
         });
+        for dy in 0..10 {
+            for dx in 0..10 {
+                let object = RenderObject {
+                    mesh: Mesh {
+                        vertex_buffer: lighting_cube_vert_bindings,
+                        index_buffer: None,
+                        element_count: 36,
+                    },
+                    transform: glm::Mat4::from_translation(glm::Vec3::new(
+                        dx as f32, -1., dy as f32,
+                    )),
+                    pipeline: lighting_pipeline,
+                    material: Material::Texture { texture },
+                };
+                self.objects.push(object);
+            }
+        }
         let lit_object = RenderObject {
             mesh: Mesh {
                 vertex_buffer: lighting_cube_vert_bindings,
                 index_buffer: None,
-                element_count: cube_verts.len() / 5,
+                element_count: 36,
             },
             transform: glm::Mat4::from_translation(glm::Vec3::new(3., 1.5, 3.)),
             pipeline: lighting_pipeline,
@@ -367,6 +242,7 @@ impl State {
         };
         self.objects.push(lit_object);
 
+        let solid_cube_vertex = cube_vertex_uv();
         let solid_color_pipeline = gfx::make_pipeline(&gfx::PipelineDesc {
             shader: gfx::make_shader(&shaders::solid_color_shader_desc(gfx::query_backend())),
             primitive_type: gfx::PrimitiveType::Triangles,
@@ -378,8 +254,9 @@ impl State {
             },
             layout: {
                 let mut layout = gfx::VertexLayoutState::new();
-                layout.attrs[shaders::ATTR_TEXTURE_POSITION].format = gfx::VertexFormat::Float3;
-                layout.attrs[shaders::ATTR_TEXTURE_V_TEX_POS].format = gfx::VertexFormat::Float2;
+                layout.attrs[shaders::ATTR_SOLID_COLOR_POSITION].format = gfx::VertexFormat::Float3;
+                layout.attrs[shaders::ATTR_SOLID_COLOR_V_TEX_POS].format =
+                    gfx::VertexFormat::Float2;
                 layout
             },
             label: c"solid color draw pipeline".as_ptr(),
@@ -387,9 +264,9 @@ impl State {
         });
         let light_obj = RenderObject {
             mesh: Mesh {
-                vertex_buffer: cube_vert_bindings,
+                vertex_buffer: solid_cube_vertex,
                 index_buffer: None,
-                element_count: cube_verts.len() / 5,
+                element_count: 36,
             },
             transform: glm::Mat4::from_translation(glm::Vec3::new(5., 3., 5.))
                 * glm::Mat4::from_scale(glm::Vec3::new(0.2, 0.2, 0.2)),
@@ -420,6 +297,7 @@ impl State {
 
     fn callback_frame(&mut self) {
         self.metrics.update();
+        self.metrics.display();
         self.camera
             .update(&mut self.inputs, self.metrics.frame_time);
 
@@ -434,6 +312,8 @@ impl State {
         let projection = self.camera.projection_matrix();
         let view = self.camera.view_matrix();
 
+        let light_pos = self.objects.last().unwrap().transform.w_axis.truncate();
+
         for object in &mut self.objects {
             self.bindings = gfx::Bindings::new();
 
@@ -446,15 +326,19 @@ impl State {
 
             match object.material {
                 Material::Simple => {}
+                Material::SolidColor { color } => {
+                    gfx::apply_uniforms(shaders::UB_SOLID_PARAMS, &gfx::value_as_range(&color));
+                }
                 Material::Texture { texture } => {
                     self.bindings.images[shaders::IMG_TEX] = texture;
                     self.bindings.samplers[shaders::SMP_SAMP] = self.sampler;
-                }
-                Material::SolidColor { color } => {
-                    object.transform *= glm::Mat4::from_rotation_y(0.01);
-                    gfx::apply_uniforms(shaders::UB_SOLID_PARAMS, &gfx::value_as_range(&color));
+                    gfx::apply_uniforms(
+                        shaders::UB_LIGHTING_PARAMS,
+                        &gfx::value_as_range(&AlignPlus4::new(light_pos)),
+                    );
                 }
             }
+
             gfx::apply_bindings(&self.bindings);
 
             let vs_params = [object.transform, view, projection];

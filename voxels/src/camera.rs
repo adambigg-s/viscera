@@ -104,6 +104,9 @@ impl Camera {
         if inputs.keys_active[sap::Keycode::L as usize] {
             sap::lock_mouse(!sap::mouse_locked());
         }
+        if inputs.keys_active[sap::Keycode::O as usize] {
+            sap::toggle_fullscreen();
+        }
         if inputs.keys_active[sap::Keycode::Escape as usize] {
             sap::request_quit();
         }

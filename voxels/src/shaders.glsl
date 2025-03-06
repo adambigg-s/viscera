@@ -3,6 +3,7 @@
 @vs vert
 in vec3 position;
 in vec3 v_color;
+
 layout (binding = 0) uniform vs_params {
     mat4 model;
     mat4 view;
@@ -20,6 +21,7 @@ void main() {
 
 @fs frag
 in vec3 f_color;
+
 out vec4 color;
 
 void main() {
@@ -35,6 +37,7 @@ void main() {
 @vs tex_vert
 in vec3 position;
 in vec2 v_tex_pos;
+
 layout (binding = 0) uniform vs_params {
     mat4 model;
     mat4 view;
@@ -52,6 +55,7 @@ void main() {
 
 @fs tex_frag
 in vec2 f_tex_pos;
+
 layout (binding = 0) uniform texture2D tex;
 layout (binding = 1) uniform sampler samp;
 
@@ -69,6 +73,7 @@ void main() {
 // solid-color shaders
 @fs solid_frag
 in vec2 f_tex_pos;
+
 layout (binding = 1) uniform solid_params {
     vec4 solid_color;
 };
@@ -89,6 +94,7 @@ void main() {
 in vec3 position;
 in vec2 v_tex_pos;
 in vec3 v_normal;
+
 layout (binding = 0) uniform vs_params {
     mat4 model;
     mat4 view;
@@ -96,30 +102,39 @@ layout (binding = 0) uniform vs_params {
 };
 
 out vec2 f_tex_pos;
-out vec3 f_normal;
+out vec3 f_world_pos;
+out vec3 f_world_normal;
 
 void main() {
-    gl_Position = projection * view * model * vec4(position, 1.);
+    vec4 world_pos = model * vec4(position, 1.);
+    gl_Position = projection * view * world_pos;
     f_tex_pos = v_tex_pos;
-    f_normal = v_normal;
+    f_world_pos = world_pos.xyz;
+    f_world_normal = mat3(model) * v_normal;
 }
 
 @end
 
 @fs lighting_frag
 in vec2 f_tex_pos;
-in vec3 f_normal;
+in vec3 f_world_pos;
+in vec3 f_world_normal;
+
 layout (binding = 0) uniform texture2D tex;
 layout (binding = 1) uniform sampler samp;
+layout (binding = 2) uniform lighting_params {
+    vec3 light_pos;
+};
 
 out vec4 color;
 
 void main() {
-    vec3 lighting_dir = normalize(vec3(1., 1., 5.));
-    vec3 normal = normalize(f_normal);
+    vec3 lighting_dir = normalize(light_pos - f_world_pos);
+    vec3 normal = normalize(f_world_normal);
     vec4 pre_color = texture(sampler2D(tex, samp), f_tex_pos);
+    
     float ambient = 0.15;
-    float diffuse = max(dot(f_normal, lighting_dir), 0.0);
+    float diffuse = max(dot(normal, lighting_dir), 0.0);
 
     color = (ambient + diffuse) * pre_color;
 }
