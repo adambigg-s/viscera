@@ -4,14 +4,14 @@ use sokol::time;
 #[derive(Default)]
 pub struct Metrics {
     pub frame_time: f32,
-    pub last_frame_time: u64,
+    pub current_time: f32,
 }
 
 impl Metrics {
     pub fn update(&mut self) {
-        let current_time = time::now();
-        self.frame_time = time::sec(current_time - self.last_frame_time) as f32;
-        self.last_frame_time = current_time;
+        let current_time = time::sec(time::now()) as f32;
+        self.frame_time = current_time - self.current_time;
+        self.current_time = current_time;
     }
 
     pub fn display(&self) {
@@ -42,15 +42,37 @@ pub fn load_texture(path: &str) -> gfx::Image {
     })
 }
 
-pub struct AlignPlus4<T> {
+#[allow(dead_code)]
+#[repr(C, align(16))]
+pub struct AlignOnePlus4<T> {
     _data: T,
     _padding: [u8; 4],
 }
 
-impl<T> AlignPlus4<T> {
-    pub fn new(_data: T) -> AlignPlus4<T> {
-        AlignPlus4 {
+#[allow(dead_code)]
+impl<T> AlignOnePlus4<T> {
+    pub fn new(_data: T) -> AlignOnePlus4<T> {
+        AlignOnePlus4 {
             _data,
+            _padding: [0o0; 4],
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[repr(C, align(16))]
+pub struct AlignTwoPlus4<T, D> {
+    _data1: T,
+    _data2: D,
+    _padding: [u8; 4],
+}
+
+#[allow(dead_code)]
+impl<T, D> AlignTwoPlus4<T, D> {
+    pub fn new(_data1: T, _data2: D) -> AlignTwoPlus4<T, D> {
+        AlignTwoPlus4 {
+            _data1,
+            _data2,
             _padding: [0o0; 4],
         }
     }

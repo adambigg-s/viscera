@@ -1,5 +1,8 @@
 @echo off
 
+cls
+echo + build +
+
 set arg1=%1
 if "%arg1%"=="" set arg1=run
 

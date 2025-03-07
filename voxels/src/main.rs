@@ -20,7 +20,7 @@ use utils::*;
 const WIDTH: i32 = 1600;
 const HEIGHT: i32 = 1200;
 #[rustfmt::skip]
-const BACKGROUND: gfx::Color = gfx::Color { r: 0.13, g: 0.13, b: 0.13, a: 1., };
+const BACKGROUND: gfx::Color = gfx::Color { r: 0.07, g: 0.07, b: 0.13, a: 1., };
 
 fn main() {
     let state = Box::new(State::new());
@@ -34,10 +34,9 @@ fn main() {
         cleanup_userdata_cb: Some(ffi_cb_cleanup),
         width: WIDTH,
         height: HEIGHT,
+        window_title: c"lighting stuff".as_ptr(),
         fullscreen: false,
-        window_title: c"learn opengl with sokol and rust".as_ptr(),
         high_dpi: true,
-        sample_count: 4,
         logger: sap::Logger {
             func: Some(log::slog_func),
             user_data,
@@ -54,6 +53,29 @@ enum Material {
     Simple,
     Texture { texture: gfx::Image },
     SolidColor { color: glm::Vec4 },
+    LightSource { _coldr: glm::Vec4 },
+}
+
+struct Transform {
+    position: glm::Vec3,
+    rotation: glm::Quat,
+    scale: glm::Vec3,
+}
+
+impl Default for Transform {
+    fn default() -> Transform {
+        Transform {
+            position: glm::Vec3::ZERO,
+            rotation: glm::Quat::IDENTITY,
+            scale: glm::Vec3::ONE,
+        }
+    }
+}
+
+impl Transform {
+    fn to_matrix(&self) -> glm::Mat4 {
+        glm::Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.position)
+    }
 }
 
 struct Mesh {
@@ -64,7 +86,7 @@ struct Mesh {
 
 struct RenderObject {
     mesh: Mesh,
-    transform: glm::Mat4,
+    transform: Transform,
     pipeline: gfx::Pipeline,
     material: Material,
 }
@@ -148,11 +170,10 @@ impl State {
                     index_buffer: Some(tri_index_bindings),
                     element_count: tri_indices.len(),
                 },
-                transform: glm::Mat4::from_translation(glm::Vec3::new(
-                    idx as f32 / 3.,
-                    0.,
-                    idx as f32,
-                )),
+                transform: Transform {
+                    position: glm::Vec3::new(idx as f32, 0., idx as f32),
+                    ..Default::default()
+                },
                 pipeline: tri_pipeline,
                 material: Material::Simple,
             };
@@ -183,7 +204,10 @@ impl State {
                 index_buffer: Some(tri_index_bindings),
                 element_count: tri_indices.len(),
             },
-            transform: glm::Mat4::from_translation(glm::Vec3::new(2., 2., 7.)),
+            transform: Transform {
+                position: glm::Vec3::new(2., 2., 7.),
+                ..Default::default()
+            },
             pipeline: plain_triangle,
             material: Material::SolidColor {
                 color: glm::Vec4::new(0., 1., 1., 1.),
@@ -213,17 +237,18 @@ impl State {
             label: c"texture draw pipeline".as_ptr(),
             ..Default::default()
         });
-        for dy in 0..10 {
-            for dx in 0..10 {
+        for dz in 0..15 {
+            for dx in 0..15 {
                 let object = RenderObject {
                     mesh: Mesh {
                         vertex_buffer: lighting_cube_vert_bindings,
                         index_buffer: None,
                         element_count: 36,
                     },
-                    transform: glm::Mat4::from_translation(glm::Vec3::new(
-                        dx as f32, -1., dy as f32,
-                    )),
+                    transform: Transform {
+                        position: glm::Vec3::new(dx as f32, -1., dz as f32),
+                        ..Default::default()
+                    },
                     pipeline: lighting_pipeline,
                     material: Material::Texture { texture },
                 };
@@ -236,7 +261,10 @@ impl State {
                 index_buffer: None,
                 element_count: 36,
             },
-            transform: glm::Mat4::from_translation(glm::Vec3::new(3., 1.5, 3.)),
+            transform: Transform {
+                position: glm::Vec3::new(3., 1.5, 3.),
+                ..Default::default()
+            },
             pipeline: lighting_pipeline,
             material: Material::Texture { texture },
         };
@@ -268,18 +296,21 @@ impl State {
                 index_buffer: None,
                 element_count: 36,
             },
-            transform: glm::Mat4::from_translation(glm::Vec3::new(5., 3., 5.))
-                * glm::Mat4::from_scale(glm::Vec3::new(0.2, 0.2, 0.2)),
+            transform: Transform {
+                position: glm::Vec3::new(5., 2., 5.),
+                scale: glm::Vec3::splat(0.2),
+                ..Default::default()
+            },
             pipeline: solid_color_pipeline,
-            material: Material::SolidColor {
-                color: glm::Vec4::new(1., 1., 1., 1.),
+            material: Material::LightSource {
+                _coldr: glm::Vec4::new(1., 1., 1., 1.),
             },
         };
         self.objects.push(light_obj);
 
         let sampler = gfx::make_sampler(&gfx::SamplerDesc {
-            min_filter: gfx::Filter::Nearest,
-            mag_filter: gfx::Filter::Nearest,
+            min_filter: gfx::Filter::Linear,
+            mag_filter: gfx::Filter::Linear,
             ..Default::default()
         });
         self.sampler = sampler;
@@ -312,7 +343,13 @@ impl State {
         let projection = self.camera.projection_matrix();
         let view = self.camera.view_matrix();
 
-        let light_pos = self.objects.last().unwrap().transform.w_axis.truncate();
+        let light_pos = self.objects.last().unwrap().transform.position;
+        let light_color = glm::Vec4::new(
+            self.metrics.current_time.sin(),
+            self.metrics.current_time.cos(),
+            self.metrics.current_time.sin() * self.metrics.current_time.cos(),
+            1.,
+        );
 
         for object in &mut self.objects {
             self.bindings = gfx::Bindings::new();
@@ -329,19 +366,31 @@ impl State {
                 Material::SolidColor { color } => {
                     gfx::apply_uniforms(shaders::UB_SOLID_PARAMS, &gfx::value_as_range(&color));
                 }
+                Material::LightSource { _coldr } => {
+                    gfx::apply_uniforms(
+                        shaders::UB_SOLID_PARAMS,
+                        &gfx::value_as_range(&light_color),
+                    );
+                }
                 Material::Texture { texture } => {
                     self.bindings.images[shaders::IMG_TEX] = texture;
                     self.bindings.samplers[shaders::SMP_SAMP] = self.sampler;
                     gfx::apply_uniforms(
                         shaders::UB_LIGHTING_PARAMS,
-                        &gfx::value_as_range(&AlignPlus4::new(light_pos)),
+                        &gfx::value_as_range(&shaders::LightingParams {
+                            light_color: light_color.to_array(),
+                            light_pos: light_pos.to_array(),
+                            _pad_28: [0; 4],
+                            view_pos: self.camera.position.to_array(),
+                            _pad_44: [0; 4],
+                        }),
                     );
                 }
             }
 
             gfx::apply_bindings(&self.bindings);
 
-            let vs_params = [object.transform, view, projection];
+            let vs_params = [object.transform.to_matrix(), view, projection];
             gfx::apply_uniforms(shaders::UB_VS_PARAMS, &gfx::slice_as_range(&vs_params));
 
             gfx::draw(0, object.mesh.element_count, 1);

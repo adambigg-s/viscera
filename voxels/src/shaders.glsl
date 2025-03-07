@@ -123,20 +123,31 @@ in vec3 f_world_normal;
 layout (binding = 0) uniform texture2D tex;
 layout (binding = 1) uniform sampler samp;
 layout (binding = 2) uniform lighting_params {
+    vec4 light_color;
     vec3 light_pos;
+    vec3 view_pos;
 };
 
 out vec4 color;
 
 void main() {
-    vec3 lighting_dir = normalize(light_pos - f_world_pos);
-    vec3 normal = normalize(f_world_normal);
     vec4 pre_color = texture(sampler2D(tex, samp), f_tex_pos);
     
-    float ambient = 0.15;
-    float diffuse = max(dot(normal, lighting_dir), 0.0);
+    float ambient = 0.07;
+    
+    vec3 normal = normalize(f_world_normal);
+    vec3 light_direction = normalize(light_pos - f_world_pos);
+    float diffuse = max(dot(normal, light_direction), 0.);
 
-    color = (ambient + diffuse) * pre_color;
+    float specular_strength = 0.7;
+    vec3 view_direction = normalize(view_pos - f_world_pos);
+    vec3 reflect_direction = reflect(-light_direction, normal);
+    float specular = pow(max(dot(view_direction, reflect_direction), 0.), 32) * specular_strength;
+
+    float distance = length(light_pos - f_world_pos);
+    float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * (distance * distance));
+
+    color = (ambient + diffuse + specular) * pre_color * light_color * attenuation;
 }
 
 @end
