@@ -9,6 +9,8 @@ use crate::{HEIGHT, WIDTH};
 #[derive(Default)]
 pub struct Camera {
     pub position: glm::Vec3,
+    pub velocity: glm::Vec3,
+    pub acceleration: f32,
 
     pub front: glm::Vec3,
     pub up: glm::Vec3,
@@ -18,13 +20,12 @@ pub struct Camera {
     pub mouse_sensitivity: f32,
     pub move_speed: f32,
 
-    pub velocity: glm::Vec3,
-    pub acceleration: f32,
-
     pub yaw: f32,
     pub pitch: f32,
 
     pub fov: f32,
+    pub default_fov: f32,
+    pub zoom_fov: f32,
     pub aspect_ratio: f32,
     pub near: f32,
     pub far: f32,
@@ -34,6 +35,8 @@ impl Camera {
     pub fn new() -> Camera {
         Camera {
             position: glm::Vec3::new(0., 0., -10.),
+            velocity: glm::Vec3::ZERO,
+            acceleration: 30.,
 
             front: glm::Vec3::new(0., 0., -1.),
             world_up: glm::Vec3::new(0., 1., 0.),
@@ -43,10 +46,9 @@ impl Camera {
             mouse_sensitivity: 0.25,
             move_speed: 2.5,
 
-            velocity: glm::Vec3::ZERO,
-            acceleration: 20.,
-
             fov: 55f32.to_radians(),
+            default_fov: 55f32.to_radians(),
+            zoom_fov: 40f32.to_radians(),
             aspect_ratio: WIDTH as f32 / HEIGHT as f32,
             near: 0.1,
             far: 100.,
@@ -56,12 +58,12 @@ impl Camera {
     }
 
     pub fn update_vectors(&mut self) {
-        let front = glm::Vec3::new(
+        self.front = glm::Vec3::new(
             self.yaw.cos() * self.pitch.cos(),
             self.pitch.sin(),
             self.yaw.sin() * self.pitch.cos(),
-        );
-        self.front = front.normalize();
+        )
+        .normalize();
         self.right = self.front.cross(self.world_up).normalize();
         self.up = self.right.cross(self.front).normalize();
     }
@@ -75,13 +77,44 @@ impl Camera {
     }
 
     pub fn update(&mut self, inputs: &mut Inputs, delta_time: f32) {
-        let dmouse = inputs.mouse_delta / 200. * self.mouse_sensitivity;
-        self.yaw += dmouse.x;
-        self.pitch -= dmouse.y;
-        self.pitch = self.pitch.clamp(-PI / 2. + 0.5, PI / 2. - 0.5);
-        inputs.mouse_delta = glm::Vec2::ZERO;
-        self.update_vectors();
+        self.update_rotation(inputs);
+        self.update_movement(inputs, delta_time);
+        self.handle_special_keys(inputs);
+        self.handle_fov_events(inputs);
+    }
 
+    fn handle_special_keys(&mut self, inputs: &mut Inputs) {
+        if inputs.keys_active[sap::Keycode::L as usize]
+            && !inputs.is_key_processed(sap::Keycode::L as usize)
+        {
+            sap::lock_mouse(!sap::mouse_locked());
+            inputs.set_key_processed(sap::Keycode::L as usize, true);
+        }
+        if inputs.keys_active[sap::Keycode::O as usize]
+            && !inputs.is_key_processed(sap::Keycode::O as usize)
+        {
+            sap::toggle_fullscreen();
+            inputs.set_key_processed(sap::Keycode::O as usize, true);
+        }
+        if inputs.keys_active[sap::Keycode::Escape as usize] {
+            sap::request_quit();
+        }
+
+        if inputs.window_event {
+            inputs.window_event = false;
+            self.aspect_ratio = sap::widthf() / sap::heightf();
+        }
+    }
+
+    fn handle_fov_events(&mut self, inputs: &mut Inputs) {
+        if inputs.mouse_right {
+            self.fov = self.zoom_fov;
+        } else {
+            self.fov = self.default_fov;
+        }
+    }
+
+    fn update_movement(&mut self, inputs: &mut Inputs, delta_time: f32) {
         let right = self.right;
         let forward = self.world_up.cross(right);
         let mut desired_movement = glm::Vec3::ZERO;
@@ -125,41 +158,23 @@ impl Camera {
             }
         }
         self.position += self.velocity * delta_time;
+    }
 
-        if inputs.keys_active[sap::Keycode::L as usize]
-            && !inputs.is_key_processed(sap::Keycode::L as usize)
-        {
-            sap::lock_mouse(!sap::mouse_locked());
-            inputs.set_key_processed(sap::Keycode::L as usize, true);
-        }
-        if inputs.keys_active[sap::Keycode::O as usize]
-            && !inputs.is_key_processed(sap::Keycode::O as usize)
-        {
-            sap::toggle_fullscreen();
-            inputs.set_key_processed(sap::Keycode::O as usize, true);
-        }
-        if inputs.keys_active[sap::Keycode::Escape as usize] {
-            sap::request_quit();
-        }
-
-        if inputs.keys_active[sap::Keycode::Equal as usize] {
-            self.fov += 0.02;
-        }
-        if inputs.keys_active[sap::Keycode::Minus as usize] {
-            self.fov -= 0.02;
-        }
-
-        if inputs.window_event {
-            inputs.window_event = false;
-            self.aspect_ratio = sap::widthf() / sap::heightf();
-        }
+    fn update_rotation(&mut self, inputs: &mut Inputs) {
+        let dmouse = inputs.mouse_delta / 200. * self.mouse_sensitivity;
+        self.yaw += dmouse.x;
+        self.pitch -= dmouse.y;
+        self.pitch = self.pitch.clamp(-PI / 2. + 0.5, PI / 2. - 0.5);
+        inputs.mouse_delta = glm::Vec2::ZERO;
+        self.update_vectors();
     }
 }
 
 pub struct Inputs {
     pub keys_active: [bool; 372],
     pub keys_processed: [bool; 372],
-    pub mouse_click: bool,
+    pub mouse_left: bool,
+    pub mouse_right: bool,
     pub mouse_delta: glm::Vec2,
     pub window_event: bool,
 }
@@ -170,8 +185,9 @@ impl Inputs {
             keys_active: [false; 372],
             keys_processed: [false; 372],
             mouse_delta: glm::Vec2::ZERO,
+            mouse_left: false,
+            mouse_right: false,
             window_event: false,
-            mouse_click: false,
         }
     }
 
@@ -192,12 +208,16 @@ impl Inputs {
             sap::EventType::Resized => {
                 self.window_event = true;
             }
-            sap::EventType::MouseDown => {
-                self.mouse_click = true;
-            }
-            sap::EventType::MouseUp => {
-                self.mouse_click = false;
-            }
+            sap::EventType::MouseDown => match event.mouse_button {
+                sap::Mousebutton::Left => self.mouse_left = true,
+                sap::Mousebutton::Right => self.mouse_right = true,
+                _ => {}
+            },
+            sap::EventType::MouseUp => match event.mouse_button {
+                sap::Mousebutton::Left => self.mouse_left = false,
+                sap::Mousebutton::Right => self.mouse_right = false,
+                _ => {}
+            },
             _ => {}
         }
     }

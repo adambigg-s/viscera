@@ -350,6 +350,7 @@ impl State {
             self.metrics.current_time.sin() * self.metrics.current_time.cos(),
             1.,
         );
+        let light_color = glm::Vec4::new(1., 1., 1., 1.);
 
         for object in &mut self.objects {
             self.bindings = gfx::Bindings::new();
