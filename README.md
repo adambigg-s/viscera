@@ -4,8 +4,7 @@ a really fast software rasterizer fully on the CPU. uses a modified version of B
 
 some examples of a "portal gun" from the game Portal 2 and .obj from https://free3d.com/user/myuline_annatar
 ![alt text](https://github.com/adambigg-s/viscera/blob/main/demo/portal_gun.png)
-![alt text](https://github.com/adambigg-s/viscera/blob/main/demo/yao_ming.mp4)
 
 some debug thing
-![alt text](https://github.com/adambigg-s/viscera/blob/main/demo/triangle.mp4)
-
+![alt text](https://github.com/adambigg-s/viscera/blob/main/demo/triangle.png)
+https://imgur.com/zAfCya7
